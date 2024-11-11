@@ -49,8 +49,6 @@ accelerate launch  --mixed_precision bf16 --num_cpu_threads_per_process 1 flux_t
     --output_name="LilyLinglan" ^
     --sample_prompts="D:\AIGC\model\oneImageTest\sample_prompts.json" ^
     --timestep_sampling=sigmoid --discrete_flow_shift 3.1582 --model_prediction_type raw --guidance_scale 1.0 ^
-    --initial_epoch=4 --skip_until_initial_step ^
-    --resume="D:\AIGC\dataset\fun\LilyLinglan_model_xplusPoses_onlySD_datav2_part2\LilyLinglan-000003-state" ^
     --lowram --save_state
 
 cd ..

@@ -1,0 +1,9 @@
+[[datasets]]
+resolution = 1024
+batch_size = 2
+
+[[datasets.subsets]]
+image_dir = "D:\\AIGC\\dataset\\oneImageTest\\1_oneImageTest"  # detaset_images
+class_tokens = "M1"
+num_repeats = 300
+caption_extension = ".txt"

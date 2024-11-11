@@ -1,44 +1,61 @@
+import sys
+sys.stdout.reconfigure(encoding='utf-8')
+
 import json
+import time
 import os
 import subprocess
-output_dir = "D:\AIGC\dataset\fun\LilyLinglan_model_xplusPoses_onlySD_datav2_part2"
-output_name = "LilyLinglan"
+output_name = "Anime Pussy"
 max_train_epochs = 10
+pretrained_model_name_or_path = r"C:\ComfyUIModel\models\checkpoints\flux1-dev.safetensors"
+clip_l = r"C:\ComfyUIModel\models\clip\clip_l.safetensors"
+t5xxl = r"C:\ComfyUIModel\models\clip\t5xxl_fp16.safetensors"
+ae = r"C:\ComfyUIModel\models\vae\ae.safetensors"
+# dataset_config = r"../config_animep.toml"
+dataset_config = r"../config_lin.toml"
+# output_dir = r"D:\AIGC\dataset\fun\Anime Pussy\model_faster_small"
+output_dir = r"D:\AIGC\dataset\fun\LilyLinglan\LilyLinglan_model_faster_v2"
+
+learning_rate = 5e-5
+network_dim = 8
+
 
 def get_command(initial_epoch, resume):
-    if resume == "":
+    if resume != "":
         keep_cmd = f'\
         accelerate launch  --mixed_precision bf16 --num_cpu_threads_per_process 1 flux_train_network.py \
-            --pretrained_model_name_or_path="C:\ComfyUIModel\models\checkpoints\copaxTimelessxl_xplusPoses_onlySD.safetensors" \
-            --clip_l="C:\ComfyUIModel\models\clip\clip_l.safetensors" \
-            --t5xxl="C:\ComfyUIModel\models\clip\t5xxl_fp16.safetensors" \
-            --ae="C:\ComfyUIModel\models\vae\ae.safetensors" \
+            --pretrained_model_name_or_path="{pretrained_model_name_or_path}" \
+            --clip_l="{clip_l}" \
+            --t5xxl="{t5xxl}" \
+            --ae="{ae}" \
             --cache_latents_to_disk --save_model_as safetensors --sdpa --persistent_data_loader_workers \
             --max_data_loader_n_workers 1 --gradient_checkpointing --mixed_precision bf16 --save_precision bf16 \
-            --network_module networks.lora_flux --network_dim 32 --optimizer_type adamw8bit --learning_rate 5e-5 \
+            --network_module networks.lora_flux --network_dim={network_dim} --optimizer_type adamw8bit --learning_rate={learning_rate} \
             --cache_text_encoder_outputs --cache_text_encoder_outputs_to_disk --fp8_base \
-            --highvram --max_train_epochs {max_train_epochs} --save_every_n_epochs=1 --dataset_config="../config_lin.toml" \
+            --highvram --max_train_epochs {max_train_epochs} --save_every_n_epochs=1 --dataset_config="{dataset_config}" \
             --output_dir="{output_dir}" \
             --output_name="{output_name}" \
-            --timestep_sampling=sigmoid --discrete_flow_shift 3.1582 --model_prediction_type raw --guidance_scale 1.0 \
-            --initial_epoch={initial_epoch} --skip_until_initial_step \
+            --timestep_sampling="faster" --discrete_flow_shift 3.1582 --model_prediction_type raw --guidance_scale 1.0 \
+            --initial_epoch={initial_epoch + 1} --skip_until_initial_step \
             --resume="{resume}" \
+            --log_with wandb --wandb_run_name="fun" --log_tracker_name="fun lora resume train" \
             --lowram --save_state '
     else:
         keep_cmd = f'\
         accelerate launch  --mixed_precision bf16 --num_cpu_threads_per_process 1 flux_train_network.py \
-            --pretrained_model_name_or_path="C:\ComfyUIModel\models\checkpoints\copaxTimelessxl_xplusPoses_onlySD.safetensors" \
-            --clip_l="C:\ComfyUIModel\models\clip\clip_l.safetensors" \
-            --t5xxl="C:\ComfyUIModel\models\clip\t5xxl_fp16.safetensors" \
-            --ae="C:\ComfyUIModel\models\vae\ae.safetensors" \
+            --pretrained_model_name_or_path="{pretrained_model_name_or_path}" \
+            --clip_l="{clip_l}" \
+            --t5xxl="{t5xxl}" \
+            --ae="{ae}" \
             --cache_latents_to_disk --save_model_as safetensors --sdpa --persistent_data_loader_workers \
             --max_data_loader_n_workers 1 --gradient_checkpointing --mixed_precision bf16 --save_precision bf16 \
-            --network_module networks.lora_flux --network_dim 32 --optimizer_type adamw8bit --learning_rate 5e-5 \
+            --network_module networks.lora_flux --network_dim={network_dim} --optimizer_type adamw8bit --learning_rate={learning_rate} \
             --cache_text_encoder_outputs --cache_text_encoder_outputs_to_disk --fp8_base \
-            --highvram --max_train_epochs {max_train_epochs} --save_every_n_epochs=1 --dataset_config="../config_lin.toml" \
+            --highvram --max_train_epochs {max_train_epochs} --save_every_n_epochs=1 --dataset_config="{dataset_config}" \
             --output_dir="{output_dir}" \
             --output_name="{output_name}" \
-            --timestep_sampling=sigmoid --discrete_flow_shift 3.1582 --model_prediction_type raw --guidance_scale 1.0 \
+            --log_with wandb --wandb_run_name="fun" --log_tracker_name="fun lora resume train" \
+            --timestep_sampling="faster" --discrete_flow_shift 3.1582 --model_prediction_type raw --guidance_scale 1.0 \
             --lowram --save_state '
     return keep_cmd
 
@@ -50,23 +67,30 @@ while(True):
         os.makedirs(dir_path)
     
     #檢查是否有儲存點
-    for output_file in os.listdir(output_dir):
-        max_epoch = 0
-        max_resume = ""
-        if(os.path.isdir(output_file)):
-            name, epoch, state = output_file.split("_")
-            epoch = int(epoch)
-            if (max_epoch < epoch):
-                max_epoch = epoch
-                max_resume = os.path.join(output_dir, output_file)
+    max_epoch = -1
+    max_resume = ""
+    if(os.path.exists(output_dir)):
+        for output_file in os.listdir(output_dir):
+            output_filepath = os.path.join(output_dir, output_file)
+            print(output_filepath)
+            if(os.path.isdir(output_filepath)):
+                name, epoch, state = output_file.split("-")
+                epoch = int(epoch)
+                if (max_epoch < epoch):
+                    max_epoch = epoch
+                    max_resume = output_filepath
+    print(f"max_epoch: {max_epoch}, max_resume: {max_resume}")
 
     cmd = get_command(max_epoch, max_resume)
-    with open(log_path, "a") as f:
+    with open(log_path, "a", encoding="utf-8") as f:
+        print(f"run_command: {cmd}")
+        # process = subprocess.Popen(cmd, shell=True, stdout=f, stderr=f, text=True)
         process = subprocess.Popen(cmd, shell=True, text=True)
         process.wait()
     
     if process.returncode != 0:
         print(f"run_command error: {cmd}")
         print(f"run again")
+        time.sleep(60)
     else:
         break
