@@ -1,9 +1,0 @@
-[[datasets]]
-resolution = 1024
-batch_size = 1
-
-[[datasets.subsets]]
-image_dir = "D:\\AIGC\\dataset\\oneImageTest\\100_oneImageTest"  # detaset_images
-class_tokens = "oneImageTest"
-num_repeats = 100
-caption_extension = ".txt"
