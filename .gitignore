@@ -1,5 +1,5 @@
 venv/*
-sd-scripts/
+sd-scripts/*
 !sd-scripts/flux_train_network.py
 !sd-scripts/train_network.py
 !sd-scripts/library/flux_train_utils.py
