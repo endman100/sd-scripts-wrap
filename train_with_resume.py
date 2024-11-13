@@ -13,6 +13,7 @@ def get_command(initial_epoch, resume, **kwargs):
     clip_l = kwargs.get("clip_l", r"C:\ComfyUIModel\models\clip\clip_l.safetensors")
     t5xxl = kwargs.get("t5xxl", r"C:\ComfyUIModel\models\clip\t5xxl_fp16.safetensors")
     ae = kwargs.get("ae", r"C:\ComfyUIModel\models\vae\ae.safetensors")
+    wandb_dir = kwargs.get("wandb_dir", r"./wandb")
     max_train_epochs = kwargs.get("max_train_epochs", 10)
     learning_rate = kwargs.get("learning_rate", 5e-5)
     network_dim = kwargs.get("network_dim", 16)
@@ -41,7 +42,7 @@ def get_command(initial_epoch, resume, **kwargs):
             --timestep_sampling="faster" --discrete_flow_shift 3.1582 --model_prediction_type raw --guidance_scale 1.0 \
             --initial_epoch={initial_epoch + 1} --skip_until_initial_step \
             --resume="{resume}" \
-            --log_with wandb --wandb_run_name="fun" --log_tracker_name="fun lora resume train" \
+            --log_with wandb --logging_dir="{wandb_dir}" --wandb_run_name="fun" --log_tracker_name="fun lora resume train" \
             --lowram --save_state '
     else:
         keep_cmd = f'\
@@ -57,12 +58,12 @@ def get_command(initial_epoch, resume, **kwargs):
             --highvram --max_train_epochs {max_train_epochs} --save_every_n_epochs=1 --dataset_config="{dataset_config}" \
             --output_dir="{output_dir}" \
             --output_name="{output_name}" \
-            --log_with wandb --wandb_run_name="fun" --log_tracker_name="fun lora resume train" \
+            --log_with wandb --logging_dir="{wandb_dir}" --wandb_run_name="fun" --log_tracker_name="fun lora resume train" \
             --timestep_sampling="faster" --discrete_flow_shift 3.1582 --model_prediction_type raw --guidance_scale 1.0 \
             --lowram --save_state '
     return keep_cmd
 
-def train_with_resume(output_name, dataset_config, output_dir, **kwargs):
+def train_with_resume(output_name, dataset_config, output_dir, wandb_dir, **kwargs):
     log_path = os.path.join(output_dir, "train.log")
     while(True):
         print("run_command")
@@ -87,6 +88,7 @@ def train_with_resume(output_name, dataset_config, output_dir, **kwargs):
         kwargs["output_name"] = output_name
         kwargs["dataset_config"] = dataset_config
         kwargs["output_dir"] = output_dir
+        kwargs["wandb_dir"] = wandb_dir
         cmd = get_command(max_epoch, max_resume, **kwargs)
         with open(log_path, "a", encoding="utf-8") as f:
             print(f"run_command: {cmd}")
