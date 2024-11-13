@@ -1,4 +1,4 @@
-git clone https://github.com/kohya-ss/sd-scripts.git
+git clone https://github.com/endman100/sd-scripts.git
 cd sd-scripts
 git pull
 git checkout sd3

@@ -15,7 +15,7 @@ def get_command(initial_epoch, resume, **kwargs):
     ae = kwargs.get("ae", r"C:\ComfyUIModel\models\vae\ae.safetensors")
     max_train_epochs = kwargs.get("max_train_epochs", 10)
     learning_rate = kwargs.get("learning_rate", 5e-5)
-    network_dim = kwargs.get("network_dim", 8)
+    network_dim = kwargs.get("network_dim", 16)
     dataset_config = kwargs["dataset_config"]
     output_dir = kwargs["output_dir"]
     output_name = kwargs["output_name"]
