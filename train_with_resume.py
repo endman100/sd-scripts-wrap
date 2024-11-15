@@ -1,5 +1,5 @@
 import sys
-sys.stdout.reconfigure(encoding='utf-8')
+# sys.stdout.reconfigure(encoding='utf-8')
 
 import json
 import time
@@ -14,8 +14,8 @@ def get_command(initial_epoch, resume, **kwargs):
     t5xxl = kwargs.get("t5xxl", r"C:\ComfyUIModel\models\clip\t5xxl_fp16.safetensors")
     ae = kwargs.get("ae", r"C:\ComfyUIModel\models\vae\ae.safetensors")
     wandb_dir = kwargs.get("wandb_dir", r"./wandb")
-    max_train_epochs = kwargs.get("max_train_epochs", 10)
-    learning_rate = kwargs.get("learning_rate", 5e-5)
+    max_train_epochs = kwargs.get("max_train_epochs", 20)
+    learning_rate = kwargs.get("learning_rate", 1e-4)
     network_dim = kwargs.get("network_dim", 16)
     dataset_config = kwargs["dataset_config"]
     output_dir = kwargs["output_dir"]
@@ -79,6 +79,8 @@ def train_with_resume(output_name, dataset_config, output_dir, wandb_dir, **kwar
                 output_filepath = os.path.join(output_dir, output_file)
                 print(output_filepath)
                 if(os.path.isdir(output_filepath)):
+                    if(len(output_file.split("-")) != 3):
+                        continue
                     name, epoch, state = output_file.split("-")
                     epoch = int(epoch)
                     if (max_epoch < epoch):
@@ -99,6 +101,13 @@ def train_with_resume(output_name, dataset_config, output_dir, wandb_dir, **kwar
         if process.returncode != 0:
             print(f"run_command error: {cmd}")
             print(f"run again")
+            workspace = os.path.dirname(output_dir)
+            interrpt_path = os.path.join(workspace, "interrupt.json")
+            if os.path.exists(interrpt_path):
+                with open(interrpt_path, "r") as f:
+                    interrupt_json = json.load(f)
+                if(interrupt_json["interrupt"] == True):
+                    print("run_command interrupted")
             time.sleep(60)
         else:
             break
