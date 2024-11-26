@@ -19,7 +19,7 @@ def get_command(initial_epoch, resume, **kwargs):
     t5xxl = kwargs.get("t5xxl", r"C:\ComfyUIModel\models\clip\t5xxl_fp16.safetensors")
     ae = kwargs.get("ae", r"C:\ComfyUIModel\models\vae\ae.safetensors")
     wandb_dir = kwargs.get("wandb_dir", r"./wandb")
-    max_train_epochs = kwargs.get("max_train_epochs", 20)
+    max_train_epochs = kwargs.get("max_train_epochs", 40)
     learning_rate = kwargs.get("learning_rate", 1e-4)
     network_dim = kwargs.get("network_dim", 16)
     dataset_config = kwargs["dataset_config"]
