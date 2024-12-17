@@ -19,7 +19,7 @@ def get_command(initial_epoch, resume, **kwargs):
     t5xxl = kwargs.get("t5xxl", r"C:\ComfyUIModel\models\clip\t5xxl_fp16.safetensors")
     ae = kwargs.get("ae", r"C:\ComfyUIModel\models\vae\ae.safetensors")
     wandb_dir = kwargs.get("wandb_dir", r"./wandb")
-    max_train_epochs = kwargs.get("max_train_epochs", 40)
+    max_train_epochs = kwargs.get("max_train_epochs", 20)
     learning_rate = kwargs.get("learning_rate", 1e-4)
     network_dim = kwargs.get("network_dim", 16)
     dataset_config = kwargs["dataset_config"]
@@ -66,7 +66,7 @@ def get_command(initial_epoch, resume, **kwargs):
             --output_name="{output_name}" \
             --log_with wandb --logging_dir="{wandb_dir}" --wandb_run_name="fun" --log_tracker_name="fun lora resume train" \
             --timestep_sampling="faster" --discrete_flow_shift 3.1582 --model_prediction_type raw --guidance_scale 1.0 \
-            --lowram --save_state --accumulation_steps=="{accumulation_steps}"'
+            --lowram --save_state --accumulation_steps="{accumulation_steps}"'
     return keep_cmd
 
 def create_toml_file(**kwargs):
@@ -139,7 +139,7 @@ def train_with_resume(output_name, output_dir, wandb_dir, **kwargs):
                 os.rename(end_dir_path, new_end_dir_path)
                 max_epoch += 1
 
-        print(f"max_epoch: {max_epoch}, max_resume: {max_resume}")
+        print(f"max_epoch: {max_epoch}, max_resume: {max_resume}", flush=True)
         kwargs["output_name"] = output_name
         kwargs["dataset_config"] = toml_path
         kwargs["output_dir"] = output_dir
