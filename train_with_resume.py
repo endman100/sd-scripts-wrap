@@ -25,7 +25,7 @@ def get_command(initial_epoch, resume, **kwargs):
     dataset_config = kwargs["dataset_config"]
     output_dir = kwargs["output_dir"]
     output_name = kwargs["output_name"]
-    accumulation_steps = kwargs["accumulation_steps"]
+    gradient_accumulation_steps = kwargs["gradient_accumulation_steps"]
 
     py_dir_path = os.path.dirname(os.path.abspath(__file__))
     train_py_path = os.path.join(py_dir_path,"sd-scripts", "flux_train_network.py")
@@ -49,7 +49,7 @@ def get_command(initial_epoch, resume, **kwargs):
             --initial_epoch={initial_epoch + 1} --skip_until_initial_step \
             --resume="{resume}" \
             --log_with wandb --logging_dir="{wandb_dir}" --wandb_run_name="fun" --log_tracker_name="fun lora resume train" \
-            --lowram --save_state --accumulation_steps="{accumulation_steps}"'
+            --lowram --save_state --gradient_accumulation_steps="{gradient_accumulation_steps}"'
     else:
         keep_cmd = f'\
         {venv_activate_path}accelerate launch  --mixed_precision bf16 --num_cpu_threads_per_process 1 {train_py_path} \
@@ -66,7 +66,7 @@ def get_command(initial_epoch, resume, **kwargs):
             --output_name="{output_name}" \
             --log_with wandb --logging_dir="{wandb_dir}" --wandb_run_name="fun" --log_tracker_name="fun lora resume train" \
             --timestep_sampling="faster" --discrete_flow_shift 3.1582 --model_prediction_type raw --guidance_scale 1.0 \
-            --lowram --save_state --accumulation_steps="{accumulation_steps}"'
+            --lowram --save_state --gradient_accumulation_steps="{gradient_accumulation_steps}"'
     return keep_cmd
 
 def create_toml_file(**kwargs):
@@ -101,7 +101,8 @@ def train_with_resume(output_name, output_dir, wandb_dir, **kwargs):
     kwargs["class_tokens"] = output_name
     toml_path = kwargs.get("toml_path")
     batch_size = kwargs.get("batch_size", 2) #4090
-    kwargs["accumulation_steps"] = batch_size // 2
+    kwargs["gradient_accumulation_steps"] = batch_size // 2
+    print(f"batch_size: {batch_size}, gradient_accumulation_steps: {kwargs['gradient_accumulation_steps']}")
 
     create_toml_file(**kwargs)
 
@@ -146,7 +147,7 @@ def train_with_resume(output_name, output_dir, wandb_dir, **kwargs):
         kwargs["wandb_dir"] = wandb_dir
         cmd = get_command(max_epoch, max_resume, **kwargs)
         with open(log_path, "a", encoding="utf-8") as f:
-            print(f"run_command: {cmd}")
+            print(f"run_command: {cmd}", flush=True)
             # process = subprocess.Popen(cmd, shell=True, stdout=f, stderr=f, text=True)
             process = subprocess.Popen(cmd, shell=True, text=True)
             process.wait()
