@@ -14,17 +14,18 @@ else:
     venv_activate_path += " && "
 
 def get_command(initial_epoch, resume, **kwargs):
-    pretrained_model_name_or_path = kwargs.get("pretrained_model_name_or_path", r"C:\ComfyUIModel\models\checkpoints\flux1-dev.safetensors")
+    pretrained_model_name_or_path = kwargs.get("pretrained_model_name_or_path", r"C:\ComfyUIModel\models\checkpoints\bluePencilFlux1_v021.safetensors")
     clip_l = kwargs.get("clip_l", r"C:\ComfyUIModel\models\clip\clip_l.safetensors")
     t5xxl = kwargs.get("t5xxl", r"C:\ComfyUIModel\models\clip\t5xxl_fp16.safetensors")
     ae = kwargs.get("ae", r"C:\ComfyUIModel\models\vae\ae.safetensors")
     wandb_dir = kwargs.get("wandb_dir", r"./wandb")
-    max_train_epochs = kwargs.get("max_train_epochs", 20)
+    max_train_epochs = kwargs.get("max_train_epochs", 6)
     learning_rate = kwargs.get("learning_rate", 1e-4)
     network_dim = kwargs.get("network_dim", 16)
     dataset_config = kwargs["dataset_config"]
     output_dir = kwargs["output_dir"]
     output_name = kwargs["output_name"]
+    save_every_n_epochs = kwargs.get("save_every_n_epochs", 1)
     gradient_accumulation_steps = kwargs["gradient_accumulation_steps"]
 
     py_dir_path = os.path.dirname(os.path.abspath(__file__))
@@ -42,7 +43,7 @@ def get_command(initial_epoch, resume, **kwargs):
             --max_data_loader_n_workers 1 --gradient_checkpointing --mixed_precision bf16 --save_precision bf16 \
             --network_module networks.lora_flux --network_dim={network_dim} --optimizer_type adamw8bit --learning_rate={learning_rate} \
             --cache_text_encoder_outputs --cache_text_encoder_outputs_to_disk --fp8_base \
-            --highvram --max_train_epochs {max_train_epochs} --save_every_n_epochs=1 --dataset_config="{dataset_config}" \
+            --highvram --max_train_epochs {max_train_epochs} --save_every_n_epochs={save_every_n_epochs} --dataset_config="{dataset_config}" \
             --output_dir="{output_dir}" \
             --output_name="{output_name}" \
             --timestep_sampling="faster" --discrete_flow_shift 3.1582 --model_prediction_type raw --guidance_scale 1.0 \
@@ -61,7 +62,7 @@ def get_command(initial_epoch, resume, **kwargs):
             --max_data_loader_n_workers 1 --gradient_checkpointing --mixed_precision bf16 --save_precision bf16 \
             --network_module networks.lora_flux --network_dim={network_dim} --optimizer_type adamw8bit --learning_rate={learning_rate} \
             --cache_text_encoder_outputs --cache_text_encoder_outputs_to_disk --fp8_base \
-            --highvram --max_train_epochs {max_train_epochs} --save_every_n_epochs=1 --dataset_config="{dataset_config}" \
+            --highvram --max_train_epochs {max_train_epochs} --save_every_n_epochs={save_every_n_epochs} --dataset_config="{dataset_config}" \
             --output_dir="{output_dir}" \
             --output_name="{output_name}" \
             --log_with wandb --logging_dir="{wandb_dir}" --wandb_run_name="fun" --log_tracker_name="fun lora resume train" \
@@ -69,11 +70,56 @@ def get_command(initial_epoch, resume, **kwargs):
             --lowram --save_state --gradient_accumulation_steps="{gradient_accumulation_steps}"'
     return keep_cmd
 
+def get_command_sdxl(initial_epoch, resume, **kwargs):
+    pretrained_model_name_or_path =  r"C:\ComfyUIModel\models\checkpoints\waiNSFWIllustrious_v140.safetensors"
+    wandb_dir = kwargs.get("wandb_dir", r"./wandb")
+    max_train_epochs = 10
+    learning_rate = 1e-4
+    network_dim = 16
+    dataset_config = kwargs["dataset_config"]
+    output_dir = kwargs["output_dir"]
+    output_name = kwargs["output_name"]
+    save_every_n_epochs = 1
+    gradient_accumulation_steps = 1
+
+    py_dir_path = os.path.dirname(os.path.abspath(__file__))
+    train_py_path = os.path.join(py_dir_path,"sd-scripts", "flux_train_network.py")
+
+    if resume != "":
+        keep_cmd = f'\
+        {venv_activate_path}accelerate launch --mixed_precision bf16 --num_cpu_threads_per_process 1 {train_py_path} \
+            --pretrained_model_name_or_path="{pretrained_model_name_or_path}" \
+            --cache_latents_to_disk --save_model_as safetensors --sdpa --persistent_data_loader_workers \
+            --max_data_loader_n_workers 1 --gradient_checkpointing --mixed_precision bf16 --save_precision bf16 \
+            --network_module networks.lora_flux --network_dim={network_dim} --optimizer_type adamw8bit --learning_rate={learning_rate} \
+            --cache_text_encoder_outputs --cache_text_encoder_outputs_to_disk --fp8_base \
+            --highvram --max_train_epochs {max_train_epochs} --save_every_n_epochs={save_every_n_epochs} --dataset_config="{dataset_config}" \
+            --output_dir="{output_dir}" \
+            --output_name="{output_name}" \
+            --initial_epoch={initial_epoch + 1} --skip_until_initial_step \
+            --resume="{resume}" \
+            --log_with wandb --logging_dir="{wandb_dir}" --wandb_run_name="LLTest" --log_tracker_name="fun lora resume train" \
+            --lowram --save_state --gradient_accumulation_steps="{gradient_accumulation_steps}"'
+    else:
+        keep_cmd = f'\
+        {venv_activate_path}accelerate launch  --mixed_precision bf16 --num_cpu_threads_per_process 1 {train_py_path} \
+            --pretrained_model_name_or_path="{pretrained_model_name_or_path}" \
+            --cache_latents_to_disk --save_model_as safetensors --sdpa --persistent_data_loader_workers \
+            --max_data_loader_n_workers 1 --gradient_checkpointing --mixed_precision bf16 --save_precision bf16 \
+            --network_module networks.lora_flux --network_dim={network_dim} --optimizer_type adamw8bit --learning_rate={learning_rate} \
+            --cache_text_encoder_outputs --cache_text_encoder_outputs_to_disk --fp8_base \
+            --highvram --max_train_epochs {max_train_epochs} --save_every_n_epochs={save_every_n_epochs} --dataset_config="{dataset_config}" \
+            --output_dir="{output_dir}" \
+            --output_name="{output_name}" \
+            --log_with wandb --logging_dir="{wandb_dir}" --wandb_run_name="LLTest" --log_tracker_name="fun lora resume train" \
+            --lowram --save_state --gradient_accumulation_steps="{gradient_accumulation_steps}"'
+    return keep_cmd
+
 def create_toml_file(**kwargs):
     resolution = kwargs.get("resolution", 1024)
     batch_size = kwargs.get("batch_size", 2)
     train_dir = kwargs.get("train_dir")
-    num_repeats = kwargs.get("num_repeats", 1)
+    num_repeats = kwargs.get("num_repeats", 100)
     caption_extension = "txt"
     toml_path = kwargs.get("toml_path")
     class_tokens = kwargs.get("class_tokens")
@@ -139,13 +185,15 @@ def train_with_resume(output_name, output_dir, wandb_dir, **kwargs):
                 new_end_dir_path = os.path.join(output_dir, f"{output_name}-{str(max_epoch + 1).zfill(6)}-state")
                 os.rename(end_dir_path, new_end_dir_path)
                 max_epoch += 1
-
+        if(max_epoch >= kwargs.get("max_train_epochs", 6)):
+            print(f" max_epoch >= max_train_epochs, no need to train again")
+            break
         print(f"max_epoch: {max_epoch}, max_resume: {max_resume}", flush=True)
         kwargs["output_name"] = output_name
         kwargs["dataset_config"] = toml_path
         kwargs["output_dir"] = output_dir
         kwargs["wandb_dir"] = wandb_dir
-        cmd = get_command(max_epoch, max_resume, **kwargs)
+        cmd = get_command_sdxl(max_epoch, max_resume, **kwargs)
         with open(log_path, "a", encoding="utf-8") as f:
             print(f"run_command: {cmd}", flush=True)
             # process = subprocess.Popen(cmd, shell=True, stdout=f, stderr=f, text=True)
