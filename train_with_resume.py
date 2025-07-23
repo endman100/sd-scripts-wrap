@@ -30,7 +30,9 @@ def get_command(initial_epoch, resume, **kwargs):
 
     py_dir_path = os.path.dirname(os.path.abspath(__file__))
     train_py_path = os.path.join(py_dir_path,"sd-scripts", "flux_train_network.py")
-
+    
+    if(initial_epoch == max_train_epochs):
+        return ""
 
     if resume != "":
         keep_cmd = f'\
@@ -39,6 +41,7 @@ def get_command(initial_epoch, resume, **kwargs):
             --clip_l="{clip_l}" \
             --t5xxl="{t5xxl}" \
             --ae="{ae}" \
+            --enable_bucket --max_bucket_reso=1280 \
             --cache_latents_to_disk --save_model_as safetensors --sdpa --persistent_data_loader_workers \
             --max_data_loader_n_workers 1 --gradient_checkpointing --mixed_precision bf16 --save_precision bf16 \
             --network_module networks.lora_flux --network_dim={network_dim} --optimizer_type adamw8bit --learning_rate={learning_rate} \
@@ -58,6 +61,7 @@ def get_command(initial_epoch, resume, **kwargs):
             --clip_l="{clip_l}" \
             --t5xxl="{t5xxl}" \
             --ae="{ae}" \
+            --enable_bucket --max_bucket_reso=1280 \
             --cache_latents_to_disk --save_model_as safetensors --sdpa --persistent_data_loader_workers \
             --max_data_loader_n_workers 1 --gradient_checkpointing --mixed_precision bf16 --save_precision bf16 \
             --network_module networks.lora_flux --network_dim={network_dim} --optimizer_type adamw8bit --learning_rate={learning_rate} \
@@ -164,6 +168,9 @@ def train_with_resume(output_name, output_dir, wandb_dir, **kwargs):
         max_resume = ""
         has_end = False
         if(os.path.exists(output_dir)):
+            print(f"output_dir: {output_dir}")
+            print(f"output_dir: {os.listdir(output_dir)}")
+            
             for output_file in os.listdir(output_dir):
                 output_filepath = os.path.join(output_dir, output_file)
                 print(output_filepath)
