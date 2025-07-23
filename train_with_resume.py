@@ -87,7 +87,7 @@ def get_command_sdxl(initial_epoch, resume, **kwargs):
     gradient_accumulation_steps = 1
 
     py_dir_path = os.path.dirname(os.path.abspath(__file__))
-    train_py_path = os.path.join(py_dir_path,"sd-scripts", "flux_train_network.py")
+    train_py_path = os.path.join(py_dir_path,"sd-scripts", "sdxl_train_network.py")
 
     if resume != "":
         keep_cmd = f'\
@@ -95,14 +95,14 @@ def get_command_sdxl(initial_epoch, resume, **kwargs):
             --pretrained_model_name_or_path="{pretrained_model_name_or_path}" \
             --cache_latents_to_disk --save_model_as safetensors --sdpa --persistent_data_loader_workers \
             --max_data_loader_n_workers 1 --gradient_checkpointing --mixed_precision bf16 --save_precision bf16 \
-            --network_module networks.lora_flux --network_dim={network_dim} --optimizer_type adamw8bit --learning_rate={learning_rate} \
-            --cache_text_encoder_outputs --cache_text_encoder_outputs_to_disk --fp8_base \
+            --network_module networks.lora --network_dim={network_dim} --optimizer_type adamw8bit --learning_rate={learning_rate} \
+            --cache_text_encoder_outputs --network_train_unet_only --cache_text_encoder_outputs_to_disk \
             --highvram --max_train_epochs {max_train_epochs} --save_every_n_epochs={save_every_n_epochs} --dataset_config="{dataset_config}" \
             --output_dir="{output_dir}" \
             --output_name="{output_name}" \
             --initial_epoch={initial_epoch + 1} --skip_until_initial_step \
             --resume="{resume}" \
-            --log_with wandb --logging_dir="{wandb_dir}" --wandb_run_name="LLTest" --log_tracker_name="fun lora resume train" \
+            --log_with wandb --logging_dir="{wandb_dir}" --wandb_run_name="MeifeiTest" --log_tracker_name="fun lora resume train" \
             --lowram --save_state --gradient_accumulation_steps="{gradient_accumulation_steps}"'
     else:
         keep_cmd = f'\
@@ -110,12 +110,12 @@ def get_command_sdxl(initial_epoch, resume, **kwargs):
             --pretrained_model_name_or_path="{pretrained_model_name_or_path}" \
             --cache_latents_to_disk --save_model_as safetensors --sdpa --persistent_data_loader_workers \
             --max_data_loader_n_workers 1 --gradient_checkpointing --mixed_precision bf16 --save_precision bf16 \
-            --network_module networks.lora_flux --network_dim={network_dim} --optimizer_type adamw8bit --learning_rate={learning_rate} \
-            --cache_text_encoder_outputs --cache_text_encoder_outputs_to_disk --fp8_base \
+            --network_module networks.lora --network_dim={network_dim} --optimizer_type adamw8bit --learning_rate={learning_rate} \
+            --cache_text_encoder_outputs --network_train_unet_only --cache_text_encoder_outputs_to_disk \
             --highvram --max_train_epochs {max_train_epochs} --save_every_n_epochs={save_every_n_epochs} --dataset_config="{dataset_config}" \
             --output_dir="{output_dir}" \
             --output_name="{output_name}" \
-            --log_with wandb --logging_dir="{wandb_dir}" --wandb_run_name="LLTest" --log_tracker_name="fun lora resume train" \
+            --log_with wandb --logging_dir="{wandb_dir}" --wandb_run_name="MeifeiTest" --log_tracker_name="fun lora resume train" \
             --lowram --save_state --gradient_accumulation_steps="{gradient_accumulation_steps}"'
     return keep_cmd
 
