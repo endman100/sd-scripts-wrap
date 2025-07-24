@@ -77,13 +77,13 @@ def get_command(initial_epoch, resume, **kwargs):
 def get_command_sdxl(initial_epoch, resume, **kwargs):
     pretrained_model_name_or_path =  r"C:\ComfyUIModel\models\checkpoints\waiNSFWIllustrious_v140.safetensors"
     wandb_dir = kwargs.get("wandb_dir", r"./wandb")
-    max_train_epochs = 10
+    max_train_epochs = kwargs.get("max_train_epochs", 6)
     learning_rate = 1e-4
     network_dim = 16
     dataset_config = kwargs["dataset_config"]
     output_dir = kwargs["output_dir"]
     output_name = kwargs["output_name"]
-    save_every_n_epochs = 1
+    save_every_n_epochs = kwargs.get("save_every_n_epochs", 5)
     gradient_accumulation_steps = 1
 
     py_dir_path = os.path.dirname(os.path.abspath(__file__))
@@ -133,7 +133,7 @@ def create_toml_file(**kwargs):
             "datasets": [
                 {
                     "resolution": resolution,
-                    "batch_size": 2, #4090
+                    "batch_size": batch_size, #4090
                     "subsets": [
                         {
                             "image_dir": train_dir,  # dataset_images
@@ -173,7 +173,7 @@ def train_with_resume(output_name, output_dir, wandb_dir, **kwargs):
             
             for output_file in os.listdir(output_dir):
                 output_filepath = os.path.join(output_dir, output_file)
-                print(output_filepath)
+                print(f"check old checkpoint:{output_filepath}", flush=True)
                 if(os.path.isdir(output_filepath)):
                     if(len(output_file.split("-")) == 3):
                         name, epoch, state = output_file.split("-")
@@ -185,17 +185,19 @@ def train_with_resume(output_name, output_dir, wandb_dir, **kwargs):
                         has_end = True
             if has_end:
                 end_path = os.path.join(output_dir, f"{name}.safetensors")
-                new_end_path = os.path.join(output_dir, f"{output_name}-{str(max_epoch + 1).zfill(6)}.safetensors")
+                max_epoch += kwargs.get("save_every_n_epochs", 1)
+                new_end_path = os.path.join(output_dir, f"{output_name}-{str(max_epoch).zfill(6)}.safetensors")
                 os.rename(end_path, new_end_path)
                 
                 end_dir_path = os.path.join(output_dir, f"{name}-state")
-                new_end_dir_path = os.path.join(output_dir, f"{output_name}-{str(max_epoch + 1).zfill(6)}-state")
+                new_end_dir_path = os.path.join(output_dir, f"{output_name}-{str(max_epoch).zfill(6)}-state")
                 os.rename(end_dir_path, new_end_dir_path)
-                max_epoch += 1
-        if(max_epoch >= kwargs.get("max_train_epochs", 6)):
-            print(f" max_epoch >= max_train_epochs, no need to train again")
-            break
+                
         print(f"max_epoch: {max_epoch}, max_resume: {max_resume}", flush=True)
+        if(max_epoch >= kwargs.get("max_train_epochs", 10)):
+            print(f"max_epoch:{max_epoch} >= max_train_epochs:{kwargs.get("max_train_epochs", 10)}, no need to train again")
+            break
+        
         kwargs["output_name"] = output_name
         kwargs["dataset_config"] = toml_path
         kwargs["output_dir"] = output_dir
@@ -220,18 +222,19 @@ def train_with_resume(output_name, output_dir, wandb_dir, **kwargs):
             time.sleep(60)
         else:
             break
+    print(f"train_with_resume end")
 
 if __name__ == "__main__":
     output_name = "flux1dev"
-    toml_path = r"D:\symbolCopyResult\result\_lora_train\LilyLinglanv2Test\config.toml"
-    output_dir = r"D:\symbolCopyResult\result\_lora_train\LilyLinglanv2Test\models"
-    wandb_dir = r"D:\symbolCopyResult\result\_lora_train\LilyLinglanv2Test\wandb"
-    train_dir = r"D:/symbolCopyResult/result\\_lora_train\\LilyLinglanv2Test\\train"
+    toml_path = r"D:\AICGCode\SymbolCopy\result\lora_train\Meifei\config.toml"
+    output_dir = r"D:\AICGCode\SymbolCopy\result\lora_train\Meifei\models"
+    wandb_dir = r"D:\AICGCode\SymbolCopy\result\lora_train\Meifei\wandb"
+    train_dir = r"D:\AICGCode\SymbolCopy\result\lora_train\Meifei\\train"
     kwargs = {
         "resolution": 1024,
-        "batch_size": 8,
+        "batch_size": 2,
         "train_dir": train_dir,
-        "num_repeats": 1,
+        "num_repeats": 100,
         "toml_path": toml_path,
     }
     train_with_resume(output_name, output_dir, wandb_dir, **kwargs)
