@@ -78,7 +78,54 @@ def get_command_sdxl(initial_epoch, resume, **kwargs):
     pretrained_model_name_or_path =  r"C:\ComfyUIModel\models\checkpoints\waiNSFWIllustrious_v140.safetensors"
     wandb_dir = kwargs.get("wandb_dir", r"./wandb")
     max_train_epochs = kwargs.get("max_train_epochs", 6)
-    learning_rate = 1e-4
+    learning_rate = kwargs.get("learning_rate", 1e-4)
+    network_dim = 16
+    dataset_config = kwargs["dataset_config"]
+    output_dir = kwargs["output_dir"]
+    output_name = kwargs["output_name"]
+    save_every_n_epochs = kwargs.get("save_every_n_epochs", 5)
+    gradient_accumulation_steps = 1
+
+    py_dir_path = os.path.dirname(os.path.abspath(__file__))
+    train_py_path = os.path.join(py_dir_path,"sd-scripts", "sdxl_train_network.py")
+
+    if resume != "":
+        keep_cmd = f'\
+        {venv_activate_path}accelerate launch --mixed_precision bf16 --num_cpu_threads_per_process 1 {train_py_path} \
+            --pretrained_model_name_or_path="{pretrained_model_name_or_path}" \
+            --save_model_as safetensors --sdpa --persistent_data_loader_workers \
+            --max_data_loader_n_workers 1 --gradient_checkpointing --mixed_precision bf16 --save_precision bf16 \
+            --network_module networks.lora_fa --network_dim={network_dim} --optimizer_type AdamW --learning_rate={learning_rate} \
+            --cache_latents_to_disk --cache_text_encoder_outputs_to_disk \
+            ---network_train_unet_only \
+            --highvram --max_train_epochs {max_train_epochs} --save_every_n_epochs={save_every_n_epochs} --dataset_config="{dataset_config}" \
+            --output_dir="{output_dir}" \
+            --output_name="{output_name}" \
+            --initial_epoch={initial_epoch + 1} --skip_until_initial_step \
+            --resume="{resume}" \
+            --log_with wandb --logging_dir="{wandb_dir}" --wandb_run_name="MeifeiTest" --log_tracker_name="fun lora_fa resume train" \
+            --save_state '
+    else:
+        keep_cmd = f'\
+        {venv_activate_path}accelerate launch  --mixed_precision bf16 --num_cpu_threads_per_process 1 {train_py_path} \
+            --pretrained_model_name_or_path="{pretrained_model_name_or_path}" \
+            --save_model_as safetensors --sdpa --persistent_data_loader_workers \
+            --max_data_loader_n_workers 1 --gradient_checkpointing --mixed_precision bf16 --save_precision bf16 \
+            --network_module networks.lora_fa --network_dim={network_dim} --optimizer_type AdamW --learning_rate={learning_rate} \
+            --cache_latents_to_disk --cache_text_encoder_outputs_to_disk \
+            --cache_text_encoder_outputs --network_train_unet_only  \
+            --highvram --max_train_epochs {max_train_epochs} --save_every_n_epochs={save_every_n_epochs} --dataset_config="{dataset_config}" \
+            --output_dir="{output_dir}" \
+            --output_name="{output_name}" \
+            --log_with wandb --logging_dir="{wandb_dir}" --wandb_run_name="MeifeiTest" --log_tracker_name="fun lora_fa resume train" \
+            --save_state '
+    return keep_cmd
+
+def get_command_sdxl_clip(initial_epoch, resume, **kwargs):
+    pretrained_model_name_or_path =  r"C:\ComfyUIModel\models\checkpoints\waiNSFWIllustrious_v140.safetensors"
+    wandb_dir = kwargs.get("wandb_dir", r"./wandb")
+    max_train_epochs = kwargs.get("max_train_epochs", 6)
+    learning_rate = kwargs.get("learning_rate", 1e-4)
     network_dim = 16
     dataset_config = kwargs["dataset_config"]
     output_dir = kwargs["output_dir"]
@@ -95,28 +142,28 @@ def get_command_sdxl(initial_epoch, resume, **kwargs):
             --pretrained_model_name_or_path="{pretrained_model_name_or_path}" \
             --cache_latents_to_disk --save_model_as safetensors --sdpa --persistent_data_loader_workers \
             --max_data_loader_n_workers 1 --gradient_checkpointing --mixed_precision bf16 --save_precision bf16 \
-            --network_module networks.dylora --network_dim={network_dim} --optimizer_type adamw8bit --learning_rate={learning_rate} \
-            --cache_text_encoder_outputs --network_train_unet_only --cache_text_encoder_outputs_to_disk \
+            --network_module networks.lora_fa --network_dim={network_dim} --optimizer_type AdamW --learning_rate={learning_rate} \
             --highvram --max_train_epochs {max_train_epochs} --save_every_n_epochs={save_every_n_epochs} --dataset_config="{dataset_config}" \
             --output_dir="{output_dir}" \
             --output_name="{output_name}" \
             --initial_epoch={initial_epoch + 1} --skip_until_initial_step \
+            --no_half_vae \
             --resume="{resume}" \
-            --log_with wandb --logging_dir="{wandb_dir}" --wandb_run_name="MeifeiTest" --log_tracker_name="fun dylora resume train" \
-            --lowram --save_state --gradient_accumulation_steps="{gradient_accumulation_steps}"'
+            --log_with wandb --logging_dir="{wandb_dir}" --wandb_run_name="MeifeiTest" --log_tracker_name="fun lora_fa resume train" \
+            --save_state '
     else:
         keep_cmd = f'\
         {venv_activate_path}accelerate launch  --mixed_precision bf16 --num_cpu_threads_per_process 1 {train_py_path} \
             --pretrained_model_name_or_path="{pretrained_model_name_or_path}" \
             --cache_latents_to_disk --save_model_as safetensors --sdpa --persistent_data_loader_workers \
             --max_data_loader_n_workers 1 --gradient_checkpointing --mixed_precision bf16 --save_precision bf16 \
-            --network_module networks.dylora --network_dim={network_dim} --optimizer_type adamw8bit --learning_rate={learning_rate} \
-            --cache_text_encoder_outputs --network_train_unet_only --cache_text_encoder_outputs_to_disk \
+            --network_module networks.lora_fa --network_dim={network_dim} --optimizer_type AdamW --learning_rate={learning_rate} \
             --highvram --max_train_epochs {max_train_epochs} --save_every_n_epochs={save_every_n_epochs} --dataset_config="{dataset_config}" \
             --output_dir="{output_dir}" \
             --output_name="{output_name}" \
-            --log_with wandb --logging_dir="{wandb_dir}" --wandb_run_name="MeifeiTest" --log_tracker_name="fun dylora resume train" \
-            --lowram --save_state --gradient_accumulation_steps="{gradient_accumulation_steps}"'
+            --no_half_vae \
+            --log_with wandb --logging_dir="{wandb_dir}" --wandb_run_name="MeifeiTest" --log_tracker_name="fun lora_fa resume train" \
+            --save_state '
     return keep_cmd
 
 def create_toml_file(**kwargs):
