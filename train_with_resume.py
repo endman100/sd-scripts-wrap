@@ -79,7 +79,7 @@ def get_command_sdxl(initial_epoch, resume, **kwargs):
     wandb_dir = kwargs.get("wandb_dir", r"./wandb")
     max_train_epochs = kwargs.get("max_train_epochs", 6)
     learning_rate = kwargs.get("learning_rate", 1e-4)
-    network_dim = 16
+    network_dim = kwargs.get("network_dim", 16)
     dataset_config = kwargs["dataset_config"]
     output_dir = kwargs["output_dir"]
     output_name = kwargs["output_name"]
@@ -131,6 +131,7 @@ def get_command_sdxl_clip(initial_epoch, resume, **kwargs):
     dataset_config = kwargs["dataset_config"]
     output_dir = kwargs["output_dir"]
     output_name = kwargs["output_name"]
+    network_module = kwargs.get("network_module", "networks.lora")
     save_every_n_epochs = kwargs.get("save_every_n_epochs", 5)
     gradient_accumulation_steps = 1
 
@@ -141,14 +142,14 @@ def get_command_sdxl_clip(initial_epoch, resume, **kwargs):
         keep_cmd = f'\
         {venv_activate_path}accelerate launch --mixed_precision bf16 --num_cpu_threads_per_process 1 {train_py_path} \
             --pretrained_model_name_or_path="{pretrained_model_name_or_path}" \
-            --cache_latents_to_disk --save_model_as safetensors --sdpa --persistent_data_loader_workers \
+            --save_model_as safetensors --sdpa --persistent_data_loader_workers \
             --max_data_loader_n_workers 1 --gradient_checkpointing --mixed_precision bf16 --save_precision bf16 \
-            --network_module networks.lora_fa --network_dim={network_dim} --optimizer_type AdamW --learning_rate={learning_rate} \
+            --network_module={network_module} --network_dim={network_dim} --optimizer_type AdamW --learning_rate={learning_rate} \
+            --cache_latents_to_disk \
             --highvram --max_train_epochs {max_train_epochs} --save_every_n_epochs={save_every_n_epochs} --dataset_config="{dataset_config}" \
             --output_dir="{output_dir}" \
             --output_name="{output_name}" \
             --initial_epoch={initial_epoch + 1} --skip_until_initial_step \
-            --no_half_vae \
             --resume="{resume}" \
             --log_with wandb --logging_dir="{wandb_dir}" --wandb_run_name="MeifeiTest" --log_tracker_name="fun lora_fa resume train" \
             --save_state '
@@ -156,13 +157,13 @@ def get_command_sdxl_clip(initial_epoch, resume, **kwargs):
         keep_cmd = f'\
         {venv_activate_path}accelerate launch  --mixed_precision bf16 --num_cpu_threads_per_process 1 {train_py_path} \
             --pretrained_model_name_or_path="{pretrained_model_name_or_path}" \
-            --cache_latents_to_disk --save_model_as safetensors --sdpa --persistent_data_loader_workers \
+            --save_model_as safetensors --sdpa --persistent_data_loader_workers \
             --max_data_loader_n_workers 1 --gradient_checkpointing --mixed_precision bf16 --save_precision bf16 \
-            --network_module networks.lora_fa --network_dim={network_dim} --optimizer_type AdamW --learning_rate={learning_rate} \
+            --network_module={network_module} --network_dim={network_dim} --optimizer_type AdamW --learning_rate={learning_rate} \
+            --cache_latents_to_disk \
             --highvram --max_train_epochs {max_train_epochs} --save_every_n_epochs={save_every_n_epochs} --dataset_config="{dataset_config}" \
             --output_dir="{output_dir}" \
             --output_name="{output_name}" \
-            --no_half_vae \
             --log_with wandb --logging_dir="{wandb_dir}" --wandb_run_name="MeifeiTest" --log_tracker_name="fun lora_fa resume train" \
             --save_state '
     return keep_cmd
@@ -199,6 +200,7 @@ def train_with_resume(output_name, output_dir, wandb_dir, **kwargs):
     kwargs["class_tokens"] = output_name
     toml_path = kwargs.get("toml_path")
     batch_size = kwargs.get("batch_size", 2) #4090
+    train_with_clip = kwargs.get("train_with_clip", False)
     kwargs["gradient_accumulation_steps"] = batch_size // 2
     print(f"batch_size: {batch_size}, gradient_accumulation_steps: {kwargs['gradient_accumulation_steps']}")
 
@@ -250,7 +252,11 @@ def train_with_resume(output_name, output_dir, wandb_dir, **kwargs):
         kwargs["dataset_config"] = toml_path
         kwargs["output_dir"] = output_dir
         kwargs["wandb_dir"] = wandb_dir
-        cmd = get_command_sdxl(max_epoch, max_resume, **kwargs)
+        if train_with_clip:
+            cmd = get_command_sdxl_clip(max_epoch, max_resume, **kwargs)
+        else:
+            cmd = get_command_sdxl(max_epoch, max_resume, **kwargs)
+            
         with open(log_path, "a", encoding="utf-8") as f:
             print(f"run_command: {cmd}", flush=True)
             # process = subprocess.Popen(cmd, shell=True, stdout=f, stderr=f, text=True)
