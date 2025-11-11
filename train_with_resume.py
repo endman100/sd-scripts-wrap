@@ -173,7 +173,7 @@ def get_command_sdxl_suffle(initial_epoch, resume, **kwargs):
     if os.name == 'nt':
         pretrained_model_name_or_path =  r"C:\ComfyUIModel\models\checkpoints\waiNSFWIllustrious_v140.safetensors"
     else:
-        pretrained_model_name_or_path =  "/workspace/storage/stable_diffusion/models/ckpts/waiNSFWIllustrious_v140.safetensors"
+        pretrained_model_name_or_path =  "/workspace/storage/stable_diffusion/models/ckpt/waiNSFWIllustrious_v140.safetensors"
     wandb_dir = kwargs.get("wandb_dir", r"./wandb")
     max_train_epochs = kwargs.get("max_train_epochs", 6)
     learning_rate = kwargs.get("learning_rate", 1e-4)
@@ -227,7 +227,7 @@ def get_command_sdxl_all(initial_epoch, resume, **kwargs):
     if os.name == 'nt':
         pretrained_model_name_or_path =  r"C:\ComfyUIModel\models\checkpoints\waiNSFWIllustrious_v140.safetensors"
     else:
-        pretrained_model_name_or_path =  "/workspace/storage/stable_diffusion/models/ckpts/waiNSFWIllustrious_v140.safetensors"
+        pretrained_model_name_or_path =  "/workspace/storage/stable_diffusion/models/ckpt/waiNSFWIllustrious_v140.safetensors"
     wandb_dir = kwargs.get("wandb_dir", r"./wandb")
     max_train_epochs = kwargs.get("max_train_epochs", 6)
     learning_rate = kwargs.get("learning_rate", 1e-4)
