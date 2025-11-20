@@ -1,3 +1,5 @@
 venv/*
 *.pyc
 sd-scripts/
+musubi-tuner/
+Ovis-U1-3B/

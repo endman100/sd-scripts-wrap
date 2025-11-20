@@ -284,9 +284,9 @@ def get_command_qwen(initial_epoch, resume, **kwargs):
         vae_path = r"C:\ComfyUIModel\models\vae\qwen_image_vae_train.safetensors"
         clip_path = r"C:\ComfyUIModel\models\clip\qwen_2.5_vl_7b.safetensors"
     else:
-        pretrained_model_name_or_path =  "/workspace/storage/stable_diffusion/models/ckpt/qwen_image_edit_fp8_e4m3fn.safetensors"
-        vae_path = "/workspace/storage/stable_diffusion/models/vae/qwen_image_vae_train.safetensors"
-        clip_path = "/workspace/storage/stable_diffusion/models/clip/qwen_2.5_vl_7b.safetensors"
+        pretrained_model_name_or_path =  "/home/gazai/models/checkpoints/Gazai-Style-000016.safetensors"
+        vae_path = "/home/gazai/models/vae/qwen_image_vae_train.safetensors"
+        clip_path = "/home/gazai/models/text_encoders/qwen_2.5_vl_7b.safetensors"
     wandb_dir = kwargs.get("wandb_dir", r"./wandb")
     max_train_epochs = kwargs.get("max_train_epochs", 6) - initial_epoch
     # max_train_epochs = 6
