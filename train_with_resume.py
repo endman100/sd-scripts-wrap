@@ -7,10 +7,14 @@ import os
 import subprocess
 import toml
 py_dir = os.path.dirname(os.path.abspath(__file__))
-venv_activate_path = os.path.join(py_dir, "..", "..", "..", "./.venv/Scripts/activate")
+if os.name == 'nt':
+    venv_path = "./.venv/Scripts/activate"
+else:
+    venv_path = "./.venv/bin/activate"
+venv_activate_path = os.path.join(py_dir, "../", "../", "../", venv_path)
 if not os.path.exists(venv_activate_path):
+    print(f"No venv found, use system python venv_activate_path: {venv_activate_path}")
     venv_activate_path = ""
-    print("No venv found, use system python")
     exit(1)
 else:
     venv_activate_path += " && "
