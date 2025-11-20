@@ -6,18 +6,29 @@ import time
 import os
 import subprocess
 import toml
-py_dir = os.path.dirname(os.path.abspath(__file__))
-if os.name == 'nt':
-    venv_path = "./.venv/Scripts/activate"
-else:
-    venv_path = "./.venv/bin/activate"
-venv_activate_path = os.path.join(py_dir, "../", "../", "../", venv_path)
-if not os.path.exists(venv_activate_path):
-    print(f"No venv found, use system python venv_activate_path: {venv_activate_path}")
-    venv_activate_path = ""
-    exit(1)
-else:
-    venv_activate_path += " && "
+
+def get_venv_cmd():
+    py_dir = os.path.dirname(os.path.abspath(__file__))
+    if os.name == 'nt':
+        venv_path = "./.venv/Scripts/activate"
+    else:
+        venv_path = "./.venv/bin/activate"
+    
+    venv_activate_path = os.path.join(py_dir, "../", "../", "../", venv_path)
+    venv_activate_path = os.path.abspath(venv_activate_path)
+    if not os.path.exists(venv_activate_path):
+        print(f"No venv found, use system python venv_activate_path: {venv_activate_path}")
+        venv_activate_path = ""
+    else:
+        venv_activate_path += " && "
+
+    if os.name == 'nt':
+        pass
+    else:
+        venv_activate_path = ". " + venv_activate_path
+    return venv_activate_path
+venv_activate_path = get_venv_cmd()
+print(f"venv_activate_path: {venv_activate_path}")
 
 def get_command(initial_epoch, resume, **kwargs):
     pretrained_model_name_or_path = kwargs.get("pretrained_model_name_or_path", r"C:\ComfyUIModel\models\checkpoints\bluePencilFlux1_v021.safetensors")
@@ -333,13 +344,13 @@ def get_command_qwen(initial_epoch, resume, **kwargs):
         keep_cmds.append(keep_cmd)
     else:
         keep_cmd = f'\
-            python {cache_latents_py_path} \
+            {venv_activate_path}python {cache_latents_py_path} \
                 --dataset_config="{dataset_config}" \
                 --vae="{vae_path}" --skip_existing '
         keep_cmds.append(keep_cmd)
         
         keep_cmd = f'\
-            python {text_encoder_path} \
+            {venv_activate_path}python {text_encoder_path} \
                 --dataset_config="{dataset_config}" \
                 --text_encoder="{clip_path}" \
                 --batch_size 1 --skip_existing '
