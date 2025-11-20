@@ -6,10 +6,12 @@ import time
 import os
 import subprocess
 import toml
-
-venv_activate_path = os.path.abspath('./venv/Scripts/activate')
+py_dir = os.path.dirname(os.path.abspath(__file__))
+venv_activate_path = os.path.join(py_dir, "..", "..", "..", "./.venv/Scripts/activate")
 if not os.path.exists(venv_activate_path):
     venv_activate_path = ""
+    print("No venv found, use system python")
+    exit(1)
 else:
     venv_activate_path += " && "
 
@@ -276,6 +278,92 @@ def get_command_sdxl_all(initial_epoch, resume, **kwargs):
             --save_state '
     return keep_cmd
 
+def get_command_qwen(initial_epoch, resume, **kwargs):
+    if os.name == 'nt':
+        pretrained_model_name_or_path =  r"C:\ComfyUIModel\models\checkpoints\Gazai-Style-000016.safetensors"
+        vae_path = r"C:\ComfyUIModel\models\vae\qwen_image_vae_train.safetensors"
+        clip_path = r"C:\ComfyUIModel\models\clip\qwen_2.5_vl_7b.safetensors"
+    else:
+        pretrained_model_name_or_path =  "/workspace/storage/stable_diffusion/models/ckpt/qwen_image_edit_fp8_e4m3fn.safetensors"
+        vae_path = "/workspace/storage/stable_diffusion/models/vae/qwen_image_vae_train.safetensors"
+        clip_path = "/workspace/storage/stable_diffusion/models/clip/qwen_2.5_vl_7b.safetensors"
+    wandb_dir = kwargs.get("wandb_dir", r"./wandb")
+    max_train_epochs = kwargs.get("max_train_epochs", 6) - initial_epoch
+    # max_train_epochs = 6
+    learning_rate = kwargs.get("learning_rate", 1e-4)
+    network_dim = kwargs.get("network_dim", 16)
+    dataset_config = kwargs["dataset_config"]
+    output_dir = kwargs["output_dir"]
+    output_name = kwargs["output_name"]
+    network_module = kwargs.get("network_module", "networks.lora")
+    # save_every_n_epochs = kwargs.get("save_every_n_epochs", 5)
+    save_every_n_epochs = 1
+    gradient_accumulation_steps = 2
+    py_dir_path = os.path.dirname(os.path.abspath(__file__))
+    train_py_path = os.path.join(py_dir_path, "musubi-tuner", "qwen_image_train_network.py")
+    cache_latents_py_path = os.path.join(py_dir_path, "musubi-tuner", "qwen_image_cache_latents.py")
+    text_encoder_path = os.path.join(py_dir_path, "musubi-tuner", "qwen_image_cache_text_encoder_outputs.py")
+
+    keep_cmds = []
+    if resume != "":
+        keep_cmd = f'\
+            {venv_activate_path}accelerate launch --gpu_ids 0 --num_processes 1 --num_cpu_threads_per_process 1 --mixed_precision bf16 {train_py_path} \
+                --dit "{pretrained_model_name_or_path}" \
+                --vae "{vae_path}" \
+                --text_encoder "{clip_path}" \
+                --dataset_config "{dataset_config}" \
+                --sdpa --mixed_precision bf16 \
+                --timestep_sampling shift \
+                --weighting_scheme none --discrete_flow_shift 2.2 \
+                --optimizer_type adamw8bit --learning_rate {learning_rate} --gradient_checkpointing \
+                --max_data_loader_n_workers 2 --persistent_data_loader_workers \
+                --network_module networks.lora_qwen_image \
+                --gradient_accumulation_steps {gradient_accumulation_steps} \
+                --network_dim 16 \
+                --fp8_base --fp8_vl --xformers \
+                --resume="{resume}" \
+                --log_with wandb --logging_dir="{wandb_dir}" --log_tracker_name="First train lora" --wandb_run_name="Qwen Image Lora" \
+                --max_train_epochs {max_train_epochs} --save_every_n_epochs {save_every_n_epochs} --seed 42 \
+                --output_dir "{output_dir}" --output_name "{output_name}" \
+                --save_state '
+        keep_cmds.append(keep_cmd)
+    else:
+        keep_cmd = f'\
+            python {cache_latents_py_path} \
+                --dataset_config="{dataset_config}" \
+                --vae="{vae_path}" --skip_existing '
+        keep_cmds.append(keep_cmd)
+        
+        keep_cmd = f'\
+            python {text_encoder_path} \
+                --dataset_config="{dataset_config}" \
+                --text_encoder="{clip_path}" \
+                --batch_size 1 --skip_existing '
+        keep_cmds.append(keep_cmd)
+
+        keep_cmd = f'\
+            {venv_activate_path}accelerate launch --gpu_ids 0 --num_processes 1 --num_cpu_threads_per_process 1 --mixed_precision bf16 {train_py_path} \
+                --dit "{pretrained_model_name_or_path}" \
+                --vae "{vae_path}" \
+                --text_encoder "{clip_path}" \
+                --dataset_config "{dataset_config}" \
+                --sdpa --mixed_precision bf16 \
+                --timestep_sampling shift \
+                --weighting_scheme none --discrete_flow_shift 2.2 \
+                --optimizer_type adamw8bit --learning_rate {learning_rate} --gradient_checkpointing \
+                --max_data_loader_n_workers 2 --persistent_data_loader_workers \
+                --gradient_accumulation_steps {gradient_accumulation_steps} \
+                --network_module networks.lora_qwen_image \
+                --network_dim 16 \
+                --fp8_base --fp8_vl --xformers \
+                --log_with wandb --logging_dir="{wandb_dir}" --log_tracker_name="First train lora" --wandb_run_name="Qwen Image Lora" \
+                --max_train_epochs {max_train_epochs} --save_every_n_epochs {save_every_n_epochs} --seed 42 \
+                --output_dir "{output_dir}" --output_name "{output_name}" \
+                --save_state '
+        keep_cmds.append(keep_cmd)
+    
+    return keep_cmds
+
 def create_toml_file(**kwargs):
     resolution = kwargs.get("resolution", 1024)
     batch_size = kwargs.get("batch_size", 2)
@@ -286,8 +374,32 @@ def create_toml_file(**kwargs):
     toml_path = kwargs.get("toml_path")
     class_tokens = kwargs.get("class_tokens")
     regularization_dir = kwargs.get("regularization_dir", None)
-    
-    with open(toml_path, "w") as f:
+    cache_dir = kwargs.get("cache_dir", train_dir)
+    cache_dir_regularization = kwargs.get("cache_dir_regularization", regularization_dir)
+    is_qwen_format = kwargs.get("train_method") == "get_command_qwen"
+    if is_qwen_format:
+        data = {
+            "general": {
+                "resolution": resolution,
+                "batch_size": 2,
+                "enable_bucket": True,
+                "bucket_no_upscale": False,
+                "caption_extension": ".txt"
+            },
+            "datasets": [
+                {
+                    "image_directory": train_dir,
+                    "cache_directory": cache_dir,
+                    "num_repeats": num_repeats
+                },
+                {
+                    "image_directory": regularization_dir,
+                    "cache_directory": cache_dir_regularization,
+                    "num_repeats": num_repeats_regularization
+                }
+            ]
+        }
+    else:
         data = {
             "datasets": [
                 {
@@ -304,6 +416,7 @@ def create_toml_file(**kwargs):
                 }
             ]
         }
+
         if regularization_dir is not None:
             data["datasets"][0]["subsets"].append(
                 {
@@ -314,6 +427,7 @@ def create_toml_file(**kwargs):
                     "is_reg": True
                 }
             )
+    with open(toml_path, "w") as f:
         toml.dump(data, f)
 
 def find_last_checkpoint(output_dir, output_name, save_every_n_epochs):
@@ -353,6 +467,7 @@ def train_with_resume(output_name, output_dir, wandb_dir, **kwargs):
     toml_path = kwargs.get("toml_path")
     batch_size = kwargs.get("batch_size", 2) #4090
     train_method = kwargs.get("train_method", "get_command_sdxl_suffle")
+    cache_dir = kwargs.get("cache_dir", None)
     kwargs["gradient_accumulation_steps"] = batch_size // 2
     print(f"batch_size: {batch_size}, gradient_accumulation_steps: {kwargs['gradient_accumulation_steps']}")
 
@@ -384,26 +499,39 @@ def train_with_resume(output_name, output_dir, wandb_dir, **kwargs):
             cmd = get_command_sdxl_all(max_epoch, max_resume, **kwargs)
         elif train_method == "get_command_sdxl_suffle":
             cmd = get_command_sdxl_suffle(max_epoch, max_resume, **kwargs)
+        elif train_method == "get_command_qwen":
+            if(max_epoch == -1):
+                max_epoch = 0
+            cmd = get_command_qwen(max_epoch, max_resume, **kwargs)
             
         with open(log_path, "a", encoding="utf-8") as f:
-            print(f"run_command: {cmd}", flush=True)
-            # process = subprocess.Popen(cmd, shell=True, stdout=f, stderr=f, text=True)
-            process = subprocess.Popen(cmd, shell=True, text=True)
-            process.wait()
-        
-        if process.returncode != 0:
-            print(f"run_command error: {cmd}")
-            print(f"run again")
-            workspace = os.path.dirname(output_dir)
-            interrpt_path = os.path.join(workspace, "interrupt.json")
-            if os.path.exists(interrpt_path):
-                with open(interrpt_path, "r") as f:
-                    interrupt_json = json.load(f)
-                if(interrupt_json["interrupt"] == True):
-                    print("run_command interrupted")
-            time.sleep(60)
-        else:
-            break
+            if type(cmd) == str:
+                cmd = [cmd]
+
+            is_error = False
+            for c in cmd:
+                print(f"run_command: {c}", flush=True)
+            
+                # process = subprocess.Popen(c, shell=True, stdout=f, stderr=f, text=True)
+                process = subprocess.Popen(c, shell=True, text=True)
+                process.wait()
+                if process.returncode != 0:
+                    print(f"run_command error: {c}")
+                    print(f"run again")
+                    workspace = os.path.dirname(output_dir)
+                    interrpt_path = os.path.join(workspace, "interrupt.json")
+                    if os.path.exists(interrpt_path):
+                        with open(interrpt_path, "r") as f:
+                            interrupt_json = json.load(f)
+                        if(interrupt_json["interrupt"] == True):
+                            print("run_command interrupted")
+                    time.sleep(60)
+                    is_error = True
+                    break
+            if is_error:
+                continue
+            else:
+                break
     print(f"train_with_resume end")
 
 if __name__ == "__main__":
