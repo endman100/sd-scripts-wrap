@@ -308,6 +308,7 @@ def get_command_qwen(initial_epoch, resume, **kwargs):
     learning_rate = kwargs.get("learning_rate", 1e-4)
     network_dim = kwargs.get("network_dim", 16)
     dataset_config = kwargs["dataset_config"]
+    dataset_config = os.path.abspath(dataset_config)
     output_dir = kwargs["output_dir"]
     output_name = kwargs["output_name"]
     network_module = kwargs.get("network_module", "networks.lora")
@@ -318,11 +319,12 @@ def get_command_qwen(initial_epoch, resume, **kwargs):
     train_py_path = os.path.join(py_dir_path, "musubi-tuner", "qwen_image_train_network.py")
     cache_latents_py_path = os.path.join(py_dir_path, "musubi-tuner", "qwen_image_cache_latents.py")
     text_encoder_path = os.path.join(py_dir_path, "musubi-tuner", "qwen_image_cache_text_encoder_outputs.py")
+    gpu_ids = 1
 
     keep_cmds = []
     if resume != "":
         keep_cmd = f'\
-            {venv_activate_path}accelerate launch --gpu_ids 0 --num_processes 1 --num_cpu_threads_per_process 1 --mixed_precision bf16 {train_py_path} \
+            export CUDA_VISIBLE_DEVICES={gpu_ids} && {venv_activate_path}accelerate launch --gpu_ids {gpu_ids} --num_processes 1 --num_cpu_threads_per_process 1 --mixed_precision bf16 {train_py_path} \
                 --dit "{pretrained_model_name_or_path}" \
                 --vae "{vae_path}" \
                 --text_encoder "{clip_path}" \
@@ -344,20 +346,20 @@ def get_command_qwen(initial_epoch, resume, **kwargs):
         keep_cmds.append(keep_cmd)
     else:
         keep_cmd = f'\
-            {venv_activate_path}python {cache_latents_py_path} \
+            export CUDA_VISIBLE_DEVICES={gpu_ids} && {venv_activate_path}python {cache_latents_py_path} \
                 --dataset_config="{dataset_config}" \
-                --vae="{vae_path}" --skip_existing '
+                --vae="{vae_path}" --skip_existing --device cuda:0 '
         keep_cmds.append(keep_cmd)
         
         keep_cmd = f'\
-            {venv_activate_path}python {text_encoder_path} \
+            export CUDA_VISIBLE_DEVICES={gpu_ids} && {venv_activate_path}python {text_encoder_path} \
                 --dataset_config="{dataset_config}" \
                 --text_encoder="{clip_path}" \
-                --batch_size 1 --skip_existing '
+                --batch_size 1 --skip_existing --device cuda:0 '
         keep_cmds.append(keep_cmd)
 
         keep_cmd = f'\
-            {venv_activate_path}accelerate launch --gpu_ids 0 --num_processes 1 --num_cpu_threads_per_process 1 --mixed_precision bf16 {train_py_path} \
+            export CUDA_VISIBLE_DEVICES={gpu_ids} && {venv_activate_path}accelerate launch --gpu_ids {gpu_ids} --num_processes 1 --num_cpu_threads_per_process 1 --mixed_precision bf16 {train_py_path} \
                 --dit "{pretrained_model_name_or_path}" \
                 --vae "{vae_path}" \
                 --text_encoder "{clip_path}" \
