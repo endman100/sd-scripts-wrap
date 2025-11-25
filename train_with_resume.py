@@ -3,6 +3,7 @@ import sys
 
 import json
 import time
+import random
 import os
 import subprocess
 import toml
@@ -295,11 +296,11 @@ def get_command_sdxl_all(initial_epoch, resume, **kwargs):
 
 def get_command_qwen(initial_epoch, resume, **kwargs):
     if os.name == 'nt':
-        pretrained_model_name_or_path =  r"C:\ComfyUIModel\models\checkpoints\Gazai-Style-000016.safetensors"
+        pretrained_model_name_or_path =  r"C:\ComfyUIModel\models\checkpoints\Gazai-Style-v2-000020.safetensors"
         vae_path = r"C:\ComfyUIModel\models\vae\qwen_image_vae_train.safetensors"
         clip_path = r"C:\ComfyUIModel\models\clip\qwen_2.5_vl_7b.safetensors"
     else:
-        pretrained_model_name_or_path =  "/home/gazai/models/checkpoints/Gazai-Style-000016.safetensors"
+        pretrained_model_name_or_path =  "/home/gazai/models/checkpoints/Gazai-Style-v2-000020.safetensors"
         vae_path = "/home/gazai/models/vae/qwen_image_vae_train.safetensors"
         clip_path = "/home/gazai/models/text_encoders/qwen_2.5_vl_7b.safetensors"
     wandb_dir = kwargs.get("wandb_dir", r"./wandb")
@@ -381,6 +382,40 @@ def get_command_qwen(initial_epoch, resume, **kwargs):
     
     return keep_cmds
 
+def create_jsonl(train_dir, jsonl_path, repeat_count, drop_prompt_rate, is_shuffle_caption, keep_shuffle_index, caption_extension="txt"):
+    output_line = []
+    for img_file in os.listdir(train_dir):
+        if img_file.lower().endswith((".png", ".jpg", ".jpeg", ".webp")):
+            img_path = os.path.join(train_dir, img_file)
+            caption_file = os.path.splitext(img_file)[0] + f".{caption_extension}"
+            caption_path = os.path.join(train_dir, caption_file)
+            assert os.path.exists(caption_path), f"Caption file does not exist: {caption_path}"
+            with open(caption_path, "r", encoding="utf-8") as cf:
+                caption_text = cf.read().strip()
+            for _i in range(repeat_count):
+                if is_shuffle_caption:
+                    caption_parts = caption_text.split(", ")
+                    keep_parts = caption_parts[:keep_shuffle_index]
+                    shuffle_parts = caption_parts[keep_shuffle_index:]
+                    random.shuffle(shuffle_parts)
+                    caption_parts = keep_parts + shuffle_parts
+                    caption_text = ", ".join(caption_parts)
+                if drop_prompt_rate > 0.0:
+                    if random.random() < drop_prompt_rate:
+                        caption_text = ""
+                json_line = {
+                    "image_path": os.path.abspath(img_path),
+                    "caption": caption_text
+                }
+                output_line.append(json_line)
+
+    # suffle output_line
+    random.shuffle(output_line)
+
+    with open(jsonl_path, "w", encoding="utf-8") as f:
+        for line in output_line:
+            f.write(json.dumps(line, ensure_ascii=False) + "\n")
+
 def create_toml_file(**kwargs):
     resolution = kwargs.get("resolution", 1024)
     batch_size = kwargs.get("batch_size", 2)
@@ -447,6 +482,60 @@ def create_toml_file(**kwargs):
     with open(toml_path, "w") as f:
         toml.dump(data, f)
 
+def create_toml_file_qwen(**kwargs):
+    resolution = kwargs.get("resolution", 1024)
+    batch_size = kwargs.get("batch_size", 2)
+    train_dir = kwargs.get("train_dir")
+    train_base_dir = os.path.dirname(train_dir)
+    train_dir_jsonl = os.path.join(train_base_dir, "train.jsonl")
+    num_repeats = kwargs.get("num_repeats", 10)
+    num_repeats_regularization = kwargs.get("num_repeats_regularization", 1)
+    caption_extension = "txt"
+    toml_path = kwargs.get("toml_path")
+    class_tokens = kwargs.get("class_tokens")
+    regularization_dir = kwargs.get("regularization_dir", None)
+    regularization_base_dir = os.path.dirname(regularization_dir)
+    regularization_dir_jsonl = os.path.join(train_base_dir, "reg.jsonl")
+    cache_dir = kwargs.get("cache_dir", train_dir)
+    cache_dir_regularization = kwargs.get("cache_dir_regularization", regularization_dir)
+    is_qwen_format = kwargs.get("train_method") == "get_command_qwen"
+    data = {
+        "general": {
+            "resolution": resolution,
+            "batch_size": 2,
+            "enable_bucket": True,
+            "bucket_no_upscale": False,
+            "caption_extension": ".txt"
+        },
+        "datasets": [
+            {
+                "image_jsonl_file": train_dir_jsonl,
+                "cache_directory": cache_dir,
+                "num_repeats": 1 #num_repeats
+            },
+            {
+                "image_jsonl_file": regularization_dir_jsonl,
+                "cache_directory": cache_dir_regularization,
+                "num_repeats": 1 #num_repeats_regularization
+            }
+        ]
+    }
+    with open(toml_path, "w") as f:
+        toml.dump(data, f)
+
+    drop_prompt_rate = kwargs.get("drop_prompt_rate", 0.0)
+    is_shuffle_caption = kwargs.get("is_shuffle_caption", False)
+    keep_shuffle_index = kwargs.get("keep_shuffle_caption", 1)
+    
+    # output train_dir_jsonl
+    if not os.path.exists(train_dir_jsonl):
+        create_jsonl(train_dir, train_dir_jsonl, num_repeats, drop_prompt_rate, is_shuffle_caption, keep_shuffle_index, caption_extension)
+    # output regularization_dir_jsonl
+    if not os.path.exists(regularization_dir_jsonl):
+        create_jsonl(regularization_dir, regularization_dir_jsonl, num_repeats_regularization, drop_prompt_rate, is_shuffle_caption, keep_shuffle_index, caption_extension)
+
+
+
 def find_last_checkpoint(output_dir, output_name, save_every_n_epochs):
     #檢查是否有儲存點
     max_epoch = -1
@@ -488,7 +577,11 @@ def train_with_resume(output_name, output_dir, wandb_dir, **kwargs):
     kwargs["gradient_accumulation_steps"] = batch_size // 2
     print(f"batch_size: {batch_size}, gradient_accumulation_steps: {kwargs['gradient_accumulation_steps']}")
 
-    create_toml_file(**kwargs)
+    is_qwen_format = train_method == "get_command_qwen"
+    if is_qwen_format:
+        create_toml_file_qwen(**kwargs)
+    else:
+        create_toml_file(**kwargs)
 
     log_path = os.path.join(output_dir, "train.log")
     while(True):
