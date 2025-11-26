@@ -320,7 +320,7 @@ def get_command_qwen(initial_epoch, resume, **kwargs):
     train_py_path = os.path.join(py_dir_path, "musubi-tuner", "qwen_image_train_network.py")
     cache_latents_py_path = os.path.join(py_dir_path, "musubi-tuner", "qwen_image_cache_latents.py")
     text_encoder_path = os.path.join(py_dir_path, "musubi-tuner", "qwen_image_cache_text_encoder_outputs.py")
-    gpu_ids = 1
+    gpu_ids = os.environ.get("CUDA_VISIBLE_DEVICES", "0")
 
     keep_cmds = []
     if resume != "":
@@ -337,7 +337,7 @@ def get_command_qwen(initial_epoch, resume, **kwargs):
                 --max_data_loader_n_workers 2 --persistent_data_loader_workers \
                 --network_module networks.lora_qwen_image \
                 --gradient_accumulation_steps {gradient_accumulation_steps} \
-                --network_dim 16 \
+                --network_dim {network_dim} \
                 --fp8_base --fp8_vl --xformers \
                 --resume="{resume}" \
                 --log_with wandb --logging_dir="{wandb_dir}" --log_tracker_name="First train lora" --wandb_run_name="Qwen Image Lora" \
@@ -372,13 +372,17 @@ def get_command_qwen(initial_epoch, resume, **kwargs):
                 --max_data_loader_n_workers 2 --persistent_data_loader_workers \
                 --gradient_accumulation_steps {gradient_accumulation_steps} \
                 --network_module networks.lora_qwen_image \
-                --network_dim 16 \
+                --network_dim {network_dim} \
                 --fp8_base --fp8_vl --xformers \
                 --log_with wandb --logging_dir="{wandb_dir}" --log_tracker_name="First train lora" --wandb_run_name="Qwen Image Lora" \
                 --max_train_epochs {max_train_epochs} --save_every_n_epochs {save_every_n_epochs} --seed 42 \
                 --output_dir "{output_dir}" --output_name "{output_name}" \
                 --save_state '
         keep_cmds.append(keep_cmd)
+    
+    # replace os
+    if os.name == 'nt':
+        keep_cmds = [cmd.replace("export", "set").replace("&&", "&") for cmd in keep_cmds]
     
     return keep_cmds
 
