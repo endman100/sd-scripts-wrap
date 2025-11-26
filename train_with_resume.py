@@ -315,7 +315,7 @@ def get_command_qwen(initial_epoch, resume, **kwargs):
     network_module = kwargs.get("network_module", "networks.lora")
     # save_every_n_epochs = kwargs.get("save_every_n_epochs", 5)
     save_every_n_epochs = 1
-    gradient_accumulation_steps = 2
+    gradient_accumulation_steps = 1
     py_dir_path = os.path.dirname(os.path.abspath(__file__))
     train_py_path = os.path.join(py_dir_path, "musubi-tuner", "qwen_image_train_network.py")
     cache_latents_py_path = os.path.join(py_dir_path, "musubi-tuner", "qwen_image_cache_latents.py")
