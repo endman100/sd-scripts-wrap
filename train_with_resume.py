@@ -312,7 +312,7 @@ def get_command_qwen(initial_epoch, resume, **kwargs):
     dataset_config = os.path.abspath(dataset_config)
     output_dir = kwargs["output_dir"]
     output_name = kwargs["output_name"]
-    network_module = kwargs.get("network_module", "networks.lora")
+    network_module = kwargs.get("network_module", "networks.lora_qwen_image")
     # save_every_n_epochs = kwargs.get("save_every_n_epochs", 5)
     save_every_n_epochs = 1
     gradient_accumulation_steps = 1
@@ -335,7 +335,7 @@ def get_command_qwen(initial_epoch, resume, **kwargs):
                 --weighting_scheme none --discrete_flow_shift 2.2 \
                 --optimizer_type adamw8bit --learning_rate {learning_rate} --gradient_checkpointing \
                 --max_data_loader_n_workers 2 --persistent_data_loader_workers \
-                --network_module networks.lora_qwen_image \
+                --network_module {network_module} \
                 --gradient_accumulation_steps {gradient_accumulation_steps} \
                 --network_dim {network_dim} \
                 --fp8_base --fp8_vl --xformers \
@@ -371,7 +371,7 @@ def get_command_qwen(initial_epoch, resume, **kwargs):
                 --optimizer_type adamw8bit --learning_rate {learning_rate} --gradient_checkpointing \
                 --max_data_loader_n_workers 2 --persistent_data_loader_workers \
                 --gradient_accumulation_steps {gradient_accumulation_steps} \
-                --network_module networks.lora_qwen_image \
+                --network_module {network_module} \
                 --network_dim {network_dim} \
                 --fp8_base --fp8_vl --xformers \
                 --log_with wandb --logging_dir="{wandb_dir}" --log_tracker_name="First train lora" --wandb_run_name="Qwen Image Lora" \
