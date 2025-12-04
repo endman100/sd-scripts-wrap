@@ -396,22 +396,11 @@ def create_jsonl(train_dir, jsonl_path, repeat_count, drop_prompt_rate, is_shuff
             assert os.path.exists(caption_path), f"Caption file does not exist: {caption_path}"
             with open(caption_path, "r", encoding="utf-8") as cf:
                 caption_text = cf.read().strip()
-            for _i in range(repeat_count):
-                if is_shuffle_caption:
-                    caption_parts = caption_text.split(", ")
-                    keep_parts = caption_parts[:keep_shuffle_index]
-                    shuffle_parts = caption_parts[keep_shuffle_index:]
-                    random.shuffle(shuffle_parts)
-                    caption_parts = keep_parts + shuffle_parts
-                    caption_text = ", ".join(caption_parts)
-                if drop_prompt_rate > 0.0:
-                    if random.random() < drop_prompt_rate:
-                        caption_text = ""
-                json_line = {
-                    "image_path": os.path.abspath(img_path),
-                    "caption": caption_text
-                }
-                output_line.append(json_line)
+            json_line = {
+                "image_path": os.path.abspath(img_path),
+                "caption": caption_text
+            }
+            output_line.append(json_line)
 
     # suffle output_line
     random.shuffle(output_line)
@@ -498,7 +487,7 @@ def create_toml_file_qwen(**kwargs):
     toml_path = kwargs.get("toml_path")
     class_tokens = kwargs.get("class_tokens")
     regularization_dir = kwargs.get("regularization_dir", None)
-    regularization_base_dir = os.path.dirname(regularization_dir)
+    regularization_caption_dir = kwargs.get("regularization_caption_dir", None)
     regularization_dir_jsonl = os.path.join(train_base_dir, "reg.jsonl")
     cache_dir = kwargs.get("cache_dir", train_dir)
     cache_dir_regularization = kwargs.get("cache_dir_regularization", regularization_dir)
@@ -517,13 +506,21 @@ def create_toml_file_qwen(**kwargs):
                 "cache_directory": cache_dir,
                 "num_repeats": 1 #num_repeats
             },
+            # {
+            #     "image_jsonl_file": regularization_dir_jsonl,
+            #     "cache_directory": cache_dir_regularization,
+            #     "num_repeats": 1 #num_repeats_regularization
+            # }
+        ]
+    }
+    if regularization_dir is not None and regularization_caption_dir is not None:
+        data["datasets"].append(
             {
                 "image_jsonl_file": regularization_dir_jsonl,
                 "cache_directory": cache_dir_regularization,
                 "num_repeats": 1 #num_repeats_regularization
             }
-        ]
-    }
+        )
     with open(toml_path, "w") as f:
         toml.dump(data, f)
 
@@ -535,10 +532,8 @@ def create_toml_file_qwen(**kwargs):
     if not os.path.exists(train_dir_jsonl):
         create_jsonl(train_dir, train_dir_jsonl, num_repeats, drop_prompt_rate, is_shuffle_caption, keep_shuffle_index, caption_extension)
     # output regularization_dir_jsonl
-    if not os.path.exists(regularization_dir_jsonl):
+    if not os.path.exists(regularization_dir_jsonl) and regularization_dir is not None and regularization_caption_dir is not None:
         create_jsonl(regularization_dir, regularization_dir_jsonl, num_repeats_regularization, drop_prompt_rate, is_shuffle_caption, keep_shuffle_index, caption_extension)
-
-
 
 def find_last_checkpoint(output_dir, output_name, save_every_n_epochs):
     #檢查是否有儲存點
