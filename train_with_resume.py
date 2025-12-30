@@ -222,7 +222,6 @@ def get_command_sdxl_suffle(initial_epoch, resume, **kwargs):
             --output_name="{output_name}" \
             --initial_epoch={initial_epoch + 1} --skip_until_initial_step \
             --resume="{resume}" \
-            --log_with wandb --logging_dir="{wandb_dir}" --wandb_run_name="MeifeiTest" --log_tracker_name="fun lora_fa resume train" \
             --save_state '
     else:
         keep_cmd = f'\
@@ -237,7 +236,6 @@ def get_command_sdxl_suffle(initial_epoch, resume, **kwargs):
             --highvram --max_train_epochs {max_train_epochs} --save_every_n_epochs={save_every_n_epochs} --dataset_config="{dataset_config}" \
             --output_dir="{output_dir}" \
             --output_name="{output_name}" \
-            --log_with wandb --logging_dir="{wandb_dir}" --wandb_run_name="MeifeiTest" --log_tracker_name="fun lora_fa resume train" \
             --save_state '
     return keep_cmd
 
