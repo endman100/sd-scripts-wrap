@@ -192,6 +192,9 @@ def get_command_sdxl_suffle(initial_epoch, resume, **kwargs):
         pretrained_model_name_or_path =  r"C:\ComfyUIModel\models\checkpoints\JANKUV5NSFWTrainedNoobai_v50.safetensors"
     else:
         pretrained_model_name_or_path =  "/workspace/storage/stable_diffusion/models/ckpt/JANKUV5NSFWTrainedNoobai_v50.safetensors"
+        if not os.path.exists(pretrained_model_name_or_path):
+            pretrained_model_name_or_path = "/home/gazai/models/checkpoints/JANKUTrainedNoobaiRouwei_v50.safetensors"
+    assert os.path.exists(pretrained_model_name_or_path), f"Pretrained model not found: {pretrained_model_name_or_path}"
     wandb_dir = kwargs.get("wandb_dir", r"./wandb")
     max_train_epochs = kwargs.get("max_train_epochs", 6)
     learning_rate = kwargs.get("learning_rate", 1e-4)
