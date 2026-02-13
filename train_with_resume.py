@@ -592,8 +592,9 @@ def train_with_resume(output_name, output_dir, wandb_dir, **kwargs):
         
         max_epoch, max_resume = find_last_checkpoint(output_dir, output_name, kwargs.get("save_every_n_epochs", 1))    
         print(f"max_epoch: {max_epoch}, max_resume: {max_resume}", flush=True)
-        if(max_epoch >= kwargs.get("max_train_epochs", 10)):
-            print(f"max_epoch:{max_epoch} >= max_train_epochs:{kwargs.get("max_train_epochs", 10)}, no need to train again")
+        max_train_epochs = kwargs.get("max_train_epochs", 10)
+        if(max_epoch >= max_train_epochs):
+            print(f"max_epoch:{max_epoch} >= max_train_epochs:{max_train_epochs}, no need to train again")
             break
         
         kwargs["output_name"] = output_name
