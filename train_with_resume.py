@@ -566,6 +566,8 @@ def find_last_checkpoint(output_dir, output_name, save_every_n_epochs):
             end_dir_path = os.path.join(output_dir, f"{name}-state")
             new_end_dir_path = os.path.join(output_dir, f"{output_name}-{str(max_epoch).zfill(6)}-state")
             os.rename(end_dir_path, new_end_dir_path)
+
+            max_resume = new_end_path
     return max_epoch, max_resume
 
 def train_with_resume(output_name, output_dir, wandb_dir, **kwargs):
