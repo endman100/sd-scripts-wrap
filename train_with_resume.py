@@ -205,7 +205,15 @@ def get_command_sdxl_suffle(initial_epoch, resume, **kwargs):
     network_module = kwargs.get("network_module", "networks.lora")
     save_every_n_epochs = kwargs.get("save_every_n_epochs", 5)
     caption_tag_dropout_rate = kwargs.get("caption_tag_dropout_rate", 0.2)
+    enable_bucket = kwargs.get("enable_bucket", False)
+    min_bucket_reso = kwargs.get("min_bucket_reso", 512)
+    max_bucket_reso = kwargs.get("max_bucket_reso", 1280)
     gradient_accumulation_steps = 1
+    bucket_cmd = (
+        f"--enable_bucket --min_bucket_reso={min_bucket_reso} --max_bucket_reso={max_bucket_reso}"
+        if enable_bucket
+        else ""
+    )
 
     py_dir_path = os.path.dirname(os.path.abspath(__file__))
     train_py_path = os.path.join(py_dir_path,"sd-scripts", "sdxl_train_network.py")
@@ -218,6 +226,7 @@ def get_command_sdxl_suffle(initial_epoch, resume, **kwargs):
             --max_data_loader_n_workers 1 --gradient_checkpointing --mixed_precision bf16 --save_precision bf16 \
             --network_module={network_module} --network_dim={network_dim} --optimizer_type AdamW --learning_rate={learning_rate} \
             --cache_latents_to_disk \
+            {bucket_cmd} \
             --network_train_unet_only \
             --shuffle_caption --keep_tokens=1 --caption_tag_dropout_rate={caption_tag_dropout_rate} \
             --highvram --max_train_epochs {max_train_epochs} --save_every_n_epochs={save_every_n_epochs} --dataset_config="{dataset_config}" \
@@ -234,6 +243,7 @@ def get_command_sdxl_suffle(initial_epoch, resume, **kwargs):
             --max_data_loader_n_workers 1 --gradient_checkpointing --mixed_precision bf16 --save_precision bf16 \
             --network_module={network_module} --network_dim={network_dim} --optimizer_type AdamW --learning_rate={learning_rate} \
             --cache_latents_to_disk \
+            {bucket_cmd} \
             --shuffle_caption --keep_tokens=1 --caption_tag_dropout_rate={caption_tag_dropout_rate} \
             --network_train_unet_only  \
             --highvram --max_train_epochs {max_train_epochs} --save_every_n_epochs={save_every_n_epochs} --dataset_config="{dataset_config}" \
@@ -422,6 +432,10 @@ def create_toml_file(**kwargs):
     regularization_dir = kwargs.get("regularization_dir", None)
     cache_dir = kwargs.get("cache_dir", train_dir)
     cache_dir_regularization = kwargs.get("cache_dir_regularization", regularization_dir)
+    enable_bucket = kwargs.get("enable_bucket")
+    min_bucket_reso = kwargs.get("min_bucket_reso")
+    max_bucket_reso = kwargs.get("max_bucket_reso")
+    bucket_no_upscale = kwargs.get("bucket_no_upscale")
     is_qwen_format = kwargs.get("train_method") == "get_command_qwen"
     if is_qwen_format:
         data = {
@@ -462,6 +476,17 @@ def create_toml_file(**kwargs):
                 }
             ]
         }
+
+        if "enable_bucket" in kwargs or "min_bucket_reso" in kwargs or "max_bucket_reso" in kwargs or "bucket_no_upscale" in kwargs:
+            data["general"] = {}
+            if "enable_bucket" in kwargs:
+                data["general"]["enable_bucket"] = enable_bucket
+            if "min_bucket_reso" in kwargs:
+                data["general"]["min_bucket_reso"] = min_bucket_reso
+            if "max_bucket_reso" in kwargs:
+                data["general"]["max_bucket_reso"] = max_bucket_reso
+            if "bucket_no_upscale" in kwargs:
+                data["general"]["bucket_no_upscale"] = bucket_no_upscale
 
         if regularization_dir is not None:
             data["datasets"][0]["subsets"].append(
