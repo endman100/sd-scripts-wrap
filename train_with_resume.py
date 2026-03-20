@@ -307,11 +307,11 @@ def get_command_sdxl_all(initial_epoch, resume, **kwargs):
 
 def get_command_qwen(initial_epoch, resume, **kwargs):
     if os.name == 'nt':
-        pretrained_model_name_or_path =  r"C:\ComfyUIModel\models\checkpoints\Gazai-Style-v2-000020.safetensors"
+        pretrained_model_name_or_path =  r"C:\ComfyUIModel\models\checkpoints\Qwen2512_GAZAI_Anime_Style-v2_0.8_merged.safetensors"
         vae_path = r"C:\ComfyUIModel\models\vae\qwen_image_vae_train.safetensors"
         clip_path = r"C:\ComfyUIModel\models\clip\qwen_2.5_vl_7b.safetensors"
     else:
-        pretrained_model_name_or_path =  "/home/gazai/models/checkpoints/Gazai-Style-v2-000020.safetensors"
+        pretrained_model_name_or_path =  "/home/gazai/models/checkpoints/Qwen2512_GAZAI_Anime_Style-v2_0.8_merged.safetensors"
         vae_path = "/home/gazai/models/vae/qwen_image_vae_train.safetensors"
         clip_path = "/home/gazai/models/text_encoders/qwen_2.5_vl_7b.safetensors"
     wandb_dir = kwargs.get("wandb_dir", r"./wandb")
