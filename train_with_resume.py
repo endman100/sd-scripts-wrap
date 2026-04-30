@@ -252,6 +252,85 @@ def get_command_sdxl_suffle(initial_epoch, resume, **kwargs):
             --save_state '
     return keep_cmd
 
+def get_command_anima(initial_epoch, resume, **kwargs):
+    """LoRA training command for Anima DiT base model.
+
+    Only fine-tunes LoRA on the base DiT (no Qwen3 text-encoder / VAE training).
+    Follows the official anima_train_network.py recipe (see
+    sd-scripts/docs/anima_train_network.md). Most other flags are left at
+    sd-scripts defaults per request.
+    """
+    if os.name == 'nt':
+        pretrained_model_name_or_path = r"C:\ComfyUIModel\models\checkpoints\anima_GAZAI_anime_style-v0.4-000002.safetensors"
+        qwen3_path = r"C:\ComfyUIModel\models\text_encoders\qwen_3_06b_base.safetensors"
+        vae_path = r"C:\ComfyUIModel\models\vae\qwen_image_vae_train.safetensors"
+    else:
+        pretrained_model_name_or_path = "/home/gazai/models/checkpoints/anima_GAZAI_anime_style-v0.4-000002.safetensors"
+        qwen3_path = "/home/gazai/models/text_encoders/qwen_3_06b_base.safetensors"
+        vae_path = "/home/gazai/models/vae/qwen_image_vae_train.safetensors"
+    assert os.path.exists(pretrained_model_name_or_path), f"Pretrained model not found: {pretrained_model_name_or_path}"
+    assert os.path.exists(qwen3_path), f"Qwen3 model not found: {qwen3_path}"
+    assert os.path.exists(vae_path), f"VAE not found: {vae_path}"
+
+    max_train_epochs = kwargs.get("max_train_epochs", 10)
+    learning_rate = kwargs.get("learning_rate", 1e-4)
+    network_dim = kwargs.get("network_dim", 8)
+    dataset_config = kwargs["dataset_config"]
+    output_dir = kwargs["output_dir"]
+    output_name = kwargs["output_name"]
+    network_module = kwargs.get("network_module", "networks.lora_anima")
+    save_every_n_epochs = kwargs.get("save_every_n_epochs", 1)
+    optimizer_type = kwargs.get("optimizer_type", "AdamW8bit")
+    lr_scheduler = kwargs.get("lr_scheduler", "constant")
+    timestep_sampling = kwargs.get("timestep_sampling", "sigmoid")
+    discrete_flow_shift = kwargs.get("discrete_flow_shift", 1.0)
+    vae_chunk_size = kwargs.get("vae_chunk_size", 64)
+
+    py_dir_path = os.path.dirname(os.path.abspath(__file__))
+    train_py_path = os.path.join(py_dir_path, "sd-scripts", "anima_train_network.py")
+
+    common_args = (
+        f' --pretrained_model_name_or_path="{pretrained_model_name_or_path}"'
+        f' --qwen3="{qwen3_path}"'
+        f' --vae="{vae_path}"'
+        f' --dataset_config="{dataset_config}"'
+        f' --output_dir="{output_dir}"'
+        f' --output_name="{output_name}"'
+        f' --save_model_as=safetensors'
+        f' --network_module={network_module} --network_dim={network_dim}'
+        f' --learning_rate={learning_rate}'
+        f' --optimizer_type="{optimizer_type}"'
+        f' --lr_scheduler="{lr_scheduler}"'
+        f' --timestep_sampling="{timestep_sampling}"'
+        f' --discrete_flow_shift={discrete_flow_shift}'
+        f' --max_train_epochs={max_train_epochs}'
+        f' --save_every_n_epochs={save_every_n_epochs}'
+        f' --save_precision bf16 --mixed_precision bf16'
+        f' --gradient_checkpointing'
+        f' --cache_latents --cache_latents_to_disk'
+        f' --cache_text_encoder_outputs --cache_text_encoder_outputs_to_disk'
+        f' --vae_chunk_size={vae_chunk_size} --vae_disable_cache'
+        f' --persistent_data_loader_workers --max_data_loader_n_workers 1'
+        f' --network_train_unet_only'
+        f' --attn_mode sdpa'
+        f' --save_state'
+    )
+
+    if resume != "":
+        keep_cmd = (
+            f'{venv_activate_path}accelerate launch --mixed_precision bf16 --num_cpu_threads_per_process 1 {train_py_path}'
+            f'{common_args}'
+            f' --initial_epoch={initial_epoch + 1} --skip_until_initial_step'
+            f' --resume="{resume}"'
+        )
+    else:
+        keep_cmd = (
+            f'{venv_activate_path}accelerate launch --mixed_precision bf16 --num_cpu_threads_per_process 1 {train_py_path}'
+            f'{common_args}'
+        )
+    return keep_cmd
+
+
 def get_command_sdxl_all(initial_epoch, resume, **kwargs):
     if os.name == 'nt':
         pretrained_model_name_or_path =  r"C:\ComfyUIModel\models\checkpoints\waiNSFWIllustrious_v140.safetensors"
@@ -637,6 +716,8 @@ def train_with_resume(output_name, output_dir, wandb_dir, **kwargs):
             cmd = get_command_sdxl_all(max_epoch, max_resume, **kwargs)
         elif train_method == "get_command_sdxl_suffle":
             cmd = get_command_sdxl_suffle(max_epoch, max_resume, **kwargs)
+        elif train_method == "get_command_anima":
+            cmd = get_command_anima(max_epoch, max_resume, **kwargs)
         elif train_method == "get_command_qwen":
             if(max_epoch == -1):
                 max_epoch = 0
@@ -674,10 +755,11 @@ def train_with_resume(output_name, output_dir, wandb_dir, **kwargs):
 
 if __name__ == "__main__":
     output_name = "flux1dev"
-    toml_path = r"D:\AICGCode\SymbolCopy\result\lora_train\Meifei\config.toml"
-    output_dir = r"D:\AICGCode\SymbolCopy\result\lora_train\Meifei\models"
-    wandb_dir = r"D:\AICGCode\SymbolCopy\result\lora_train\Meifei\wandb"
-    train_dir = r"D:\AICGCode\SymbolCopy\result\lora_train\Meifei\\train"
+    workspace = r"D:\AICGCode\SymbolCopy\result\lora_train\Meifei"
+    toml_path = os.path.join(workspace, "config.toml")
+    output_dir = os.path.join(workspace, "models")
+    wandb_dir = os.path.join(workspace, "wandb")
+    train_dir = os.path.join(workspace, "train")
     kwargs = {
         "resolution": 1024,
         "batch_size": 2,
