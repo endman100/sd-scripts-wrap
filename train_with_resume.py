@@ -254,11 +254,6 @@ def get_command_sdxl_suffle(initial_epoch, resume, **kwargs):
 
 def get_command_anima(initial_epoch, resume, **kwargs):
     """LoRA training command for Anima DiT base model.
-
-    Only fine-tunes LoRA on the base DiT (no Qwen3 text-encoder / VAE training).
-    Follows the official anima_train_network.py recipe (see
-    sd-scripts/docs/anima_train_network.md). Most other flags are left at
-    sd-scripts defaults per request.
     """
     if os.name == 'nt':
         pretrained_model_name_or_path = r"C:\ComfyUIModel\models\checkpoints\anima_GAZAI_anime_style-v0.4-000002.safetensors"
@@ -285,6 +280,33 @@ def get_command_anima(initial_epoch, resume, **kwargs):
     timestep_sampling = kwargs.get("timestep_sampling", "sigmoid")
     discrete_flow_shift = kwargs.get("discrete_flow_shift", 1.0)
     vae_chunk_size = kwargs.get("vae_chunk_size", 64)
+    caption_tag_dropout_rate = kwargs.get("caption_tag_dropout_rate", 0.2)
+    keep_tokens = kwargs.get("keep_tokens", 2)
+    shuffle_caption = kwargs.get("shuffle_caption", True)
+    enable_bucket = kwargs.get("enable_bucket", False)
+    min_bucket_reso = kwargs.get("min_bucket_reso", 512)
+    max_bucket_reso = kwargs.get("max_bucket_reso", 1280)
+    bucket_cmd = (
+        f" --enable_bucket --min_bucket_reso={min_bucket_reso} --max_bucket_reso={max_bucket_reso}"
+        if enable_bucket
+        else ""
+    )
+
+    # anima_train_network.py 不允許 cache_text_encoder_outputs 與 shuffle_caption / caption_tag_dropout_rate 並存。
+    # 啟用 shuffle/dropout 時自動關閉 TE 輸出快取（unet-only 訓練下仍可正常運作，僅速度略慢）。
+    needs_caption_aug = shuffle_caption or (caption_tag_dropout_rate and caption_tag_dropout_rate > 0)
+    cache_text_encoder_outputs = kwargs.get("cache_text_encoder_outputs", not needs_caption_aug)
+    te_cache_cmd = (
+        " --cache_text_encoder_outputs --cache_text_encoder_outputs_to_disk"
+        if cache_text_encoder_outputs
+        else ""
+    )
+
+    caption_aug_cmd = ""
+    if shuffle_caption:
+        caption_aug_cmd += f" --shuffle_caption --keep_tokens={keep_tokens}"
+    if caption_tag_dropout_rate and caption_tag_dropout_rate > 0:
+        caption_aug_cmd += f" --caption_tag_dropout_rate={caption_tag_dropout_rate}"
 
     py_dir_path = os.path.dirname(os.path.abspath(__file__))
     train_py_path = os.path.join(py_dir_path, "sd-scripts", "anima_train_network.py")
@@ -308,11 +330,13 @@ def get_command_anima(initial_epoch, resume, **kwargs):
         f' --save_precision bf16 --mixed_precision bf16'
         f' --gradient_checkpointing'
         f' --cache_latents --cache_latents_to_disk'
-        f' --cache_text_encoder_outputs --cache_text_encoder_outputs_to_disk'
+        f'{te_cache_cmd}'
         f' --vae_chunk_size={vae_chunk_size} --vae_disable_cache'
         f' --persistent_data_loader_workers --max_data_loader_n_workers 1'
         f' --network_train_unet_only'
         f' --attn_mode sdpa'
+        f'{caption_aug_cmd}'
+        f'{bucket_cmd}'
         f' --save_state'
     )
 
