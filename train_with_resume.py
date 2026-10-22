@@ -11,7 +11,7 @@ import toml
 def get_venv_cmd():
     py_dir = os.path.dirname(os.path.abspath(__file__))
     if os.name == 'nt':
-        venv_path = "./.venv/Scripts/activate"
+        venv_path = "./.venv/Scripts/activate.bat"
     else:
         venv_path = "./.venv/bin/activate"
     
@@ -93,7 +93,11 @@ def get_command(initial_epoch, resume, **kwargs):
     return keep_cmd
 
 def get_command_sdxl(initial_epoch, resume, **kwargs):
-    pretrained_model_name_or_path =  r"C:\ComfyUIModel\models\checkpoints\waiNSFWIllustrious_v140.safetensors"
+    pretrained_model_name_or_path = kwargs.get(
+        "pretrained_model_name_or_path",
+        r"C:\ComfyUIModel\models\checkpoints\waiNSFWIllustrious_v140.safetensors",
+    )
+    assert os.path.exists(pretrained_model_name_or_path), f"Pretrained model not found: {pretrained_model_name_or_path}"
     wandb_dir = kwargs.get("wandb_dir", r"./wandb")
     max_train_epochs = kwargs.get("max_train_epochs", 6)
     learning_rate = kwargs.get("learning_rate", 1e-4)
@@ -194,6 +198,7 @@ def get_command_sdxl_suffle(initial_epoch, resume, **kwargs):
         pretrained_model_name_or_path =  "/workspace/storage/stable_diffusion/models/ckpt/JANKUTrainedNoobaiRouwei_v50.safetensors"
         if not os.path.exists(pretrained_model_name_or_path):
             pretrained_model_name_or_path = "/home/gazai/models/checkpoints/JANKUTrainedNoobaiRouwei_v50.safetensors"
+    pretrained_model_name_or_path = kwargs.get("pretrained_model_name_or_path", pretrained_model_name_or_path)
     assert os.path.exists(pretrained_model_name_or_path), f"Pretrained model not found: {pretrained_model_name_or_path}"
     wandb_dir = kwargs.get("wandb_dir", r"./wandb")
     max_train_epochs = kwargs.get("max_train_epochs", 6)
@@ -259,10 +264,17 @@ def get_command_anima(initial_epoch, resume, **kwargs):
         pretrained_model_name_or_path = r"C:\ComfyUIModel\models\checkpoints\anima_GAZAI_anime_style-v0.4-000002.safetensors"
         qwen3_path = r"C:\ComfyUIModel\models\text_encoders\qwen_3_06b_base.safetensors"
         vae_path = r"C:\ComfyUIModel\models\vae\qwen_image_vae_train.safetensors"
+        if not os.path.exists(qwen3_path):
+            qwen3_clip_path = r"C:\ComfyUIModel\models\clip\qwen_3_06b_base.safetensors"
+            if os.path.exists(qwen3_clip_path):
+                qwen3_path = qwen3_clip_path
     else:
         pretrained_model_name_or_path = "/home/gazai/models/checkpoints/anima_GAZAI_anime_style-v0.4-000002.safetensors"
         qwen3_path = "/home/gazai/models/text_encoders/qwen_3_06b_base.safetensors"
         vae_path = "/home/gazai/models/vae/qwen_image_vae_train.safetensors"
+    pretrained_model_name_or_path = kwargs.get("pretrained_model_name_or_path", pretrained_model_name_or_path)
+    qwen3_path = kwargs.get("qwen3_path", qwen3_path)
+    vae_path = kwargs.get("vae_path", vae_path)
     assert os.path.exists(pretrained_model_name_or_path), f"Pretrained model not found: {pretrained_model_name_or_path}"
     assert os.path.exists(qwen3_path), f"Qwen3 model not found: {qwen3_path}"
     assert os.path.exists(vae_path), f"VAE not found: {vae_path}"
@@ -664,38 +676,49 @@ def create_toml_file_qwen(**kwargs):
     if not os.path.exists(regularization_dir_jsonl) and regularization_dir is not None and regularization_caption_dir is not None:
         create_jsonl(regularization_dir, regularization_dir_jsonl, num_repeats_regularization, drop_prompt_rate, is_shuffle_caption, keep_shuffle_index, caption_extension)
 
+def _read_state_epoch(state_dir):
+    train_state_path = os.path.join(state_dir, "train_state.json")
+    if not os.path.exists(train_state_path):
+        return None
+    try:
+        with open(train_state_path, "r", encoding="utf-8") as f:
+            train_state = json.load(f)
+    except (OSError, json.JSONDecodeError):
+        return None
+    epoch = train_state.get("current_epoch")
+    if isinstance(epoch, int):
+        return epoch
+    return None
+
+
 def find_last_checkpoint(output_dir, output_name, save_every_n_epochs):
-    #檢查是否有儲存點
+    # 檢查是否有可續訓的 Accelerate state。優先讀取 train_state.json，
+    # 避免 final-only 的 <output_name>-state 被錯誤推成 save interval。
     max_epoch = -1
     max_resume = ""
-    has_end = False
-    if(os.path.exists(output_dir)):
+    if os.path.exists(output_dir):
         print(f"output_dir: {output_dir}")
         print(f"output_dir: {os.listdir(output_dir)}")
-        
+
+        epoch_state_suffix = "-state"
+        epoch_prefix = f"{output_name}-"
         for output_file in os.listdir(output_dir):
             output_filepath = os.path.join(output_dir, output_file)
             print(f"check old checkpoint:{output_filepath}", flush=True)
-            if(os.path.isdir(output_filepath)):
-                if(len(output_file.split("-")) == 3):
-                    name, epoch, state = output_file.split("-")
-                    epoch = int(epoch)
-                    if (max_epoch < epoch):
-                        max_epoch = epoch
-                        max_resume = output_filepath
-                elif(len(output_file.split("-")) == 2):
-                    has_end = True
-        if has_end:
-            end_path = os.path.join(output_dir, f"{name}.safetensors")
-            max_epoch += save_every_n_epochs
-            new_end_path = os.path.join(output_dir, f"{output_name}-{str(max_epoch).zfill(6)}.safetensors")
-            os.rename(end_path, new_end_path)
-            
-            end_dir_path = os.path.join(output_dir, f"{name}-state")
-            new_end_dir_path = os.path.join(output_dir, f"{output_name}-{str(max_epoch).zfill(6)}-state")
-            os.rename(end_dir_path, new_end_dir_path)
+            if not os.path.isdir(output_filepath):
+                continue
 
-            max_resume = new_end_path
+            epoch = None
+            if output_file == f"{output_name}{epoch_state_suffix}":
+                epoch = _read_state_epoch(output_filepath)
+            elif output_file.startswith(epoch_prefix) and output_file.endswith(epoch_state_suffix):
+                epoch_part = output_file[len(epoch_prefix):-len(epoch_state_suffix)]
+                if epoch_part.isdigit():
+                    epoch = int(epoch_part)
+
+            if epoch is not None and max_epoch < epoch:
+                max_epoch = epoch
+                max_resume = output_filepath
     return max_epoch, max_resume
 
 def train_with_resume(output_name, output_dir, wandb_dir, **kwargs):
